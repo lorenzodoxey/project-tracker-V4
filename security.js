@@ -282,9 +282,13 @@ const SECURITY_CONFIG = {
     // Always load latest users before authentication (for real-time sync)
     await SECURITY_CONFIG.loadUsers();
     
+    console.log('👥 Current users loaded:', Object.keys(SECURITY_CONFIG.users));
+    console.log('🔍 Looking for user:', username.toLowerCase());
+    
     const user = SECURITY_CONFIG.users[username.toLowerCase()];
     if (!user) {
       console.log('❌ User not found:', username);
+      console.log('📋 Available users:', Object.keys(SECURITY_CONFIG.users).join(', '));
       return null;
     }
     
@@ -292,6 +296,8 @@ const SECURITY_CONFIG = {
       console.log('❌ User account disabled:', username);
       return null;
     }
+    
+    console.log('✅ User found:', username, '- Role:', user.role, '- Has hash:', !!user.hash);
     
     let passwordMatch = false;
     
@@ -640,4 +646,29 @@ const userManager = new UserManager();
 window.userManager = userManager;
 window.SECURITY_CONFIG = SECURITY_CONFIG;
 
-console.log('🚀 Enhanced security system loaded with cloud sync');
+// Debug function for troubleshooting login issues
+window.debugAuth = async () => {
+  console.log('🔧 DEBUG: Current authentication state');
+  await SECURITY_CONFIG.loadUsers();
+  console.log('👥 All users:', Object.keys(SECURITY_CONFIG.users));
+  console.log('📋 User details:');
+  Object.keys(SECURITY_CONFIG.users).forEach(username => {
+    const user = SECURITY_CONFIG.users[username];
+    console.log(`  ${username}: role=${user.role}, active=${user.active}, hasHash=${!!user.hash}, isDefault=${user.isDefault}`);
+  });
+  
+  // Check cloud data
+  try {
+    const cloudData = await SECURITY_CONFIG.cloud.loadFromCloud();
+    console.log('☁️ Cloud data:', cloudData);
+  } catch (error) {
+    console.log('❌ Cloud error:', error.message);
+  }
+  
+  // Check local storage
+  const localData = JSON.parse(localStorage.getItem(SECURITY_CONFIG.userStorageKey) || '{}');
+  console.log('� Local storage data:', localData);
+};
+
+console.log('�🚀 Enhanced security system loaded with cloud sync');
+console.log('💡 Run debugAuth() in console to troubleshoot login issues');
