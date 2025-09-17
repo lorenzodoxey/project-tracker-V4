@@ -19,13 +19,18 @@ class SimpleAuth {
     // Load any custom users from localStorage
     const customUsers = this.loadCustomUsers();
     this.users = { ...this.users, ...customUsers };
+    console.log('Auth initialized. Total users:', Object.keys(this.users).length);
+    console.log('Users:', Object.keys(this.users));
   }
 
   loadCustomUsers() {
     try {
       const stored = localStorage.getItem(this.storageKey);
-      return stored ? JSON.parse(stored) : {};
+      const customUsers = stored ? JSON.parse(stored) : {};
+      console.log('Loaded custom users from storage:', Object.keys(customUsers));
+      return customUsers;
     } catch (error) {
+      console.error('Error loading custom users:', error);
       return {};
     }
   }
@@ -40,21 +45,28 @@ class SimpleAuth {
         }
       });
       localStorage.setItem(this.storageKey, JSON.stringify(customUsers));
+      console.log('Saved custom users:', Object.keys(customUsers));
       return true;
     } catch (error) {
+      console.error('Failed to save custom users:', error);
       return false;
     }
   }
 
   async login(username, password) {
-    const user = this.users[username.toLowerCase()];
+    const userKey = username.toLowerCase();
+    const user = this.users[userKey];
+    
+    console.log('Login attempt for:', userKey);
+    console.log('Available users:', Object.keys(this.users));
+    console.log('User found:', !!user);
     
     if (!user || user.password !== password) {
       throw new Error('Invalid username or password');
     }
 
     const session = {
-      username: username.toLowerCase(),
+      username: userKey,
       name: user.name,
       role: user.role,
       loginTime: Date.now(),
@@ -62,6 +74,7 @@ class SimpleAuth {
     };
 
     localStorage.setItem(this.sessionKey, JSON.stringify(session));
+    console.log('Login successful for:', userKey);
     return session;
   }
 
@@ -93,17 +106,25 @@ class SimpleAuth {
       throw new Error('Admin access required');
     }
 
-    if (this.users[username.toLowerCase()]) {
+    const userKey = username.toLowerCase();
+    if (this.users[userKey]) {
       throw new Error('Username already exists');
     }
 
-    this.users[username.toLowerCase()] = {
+    this.users[userKey] = {
       password: password,
       name: name,
       role: role
     };
 
-    this.saveCustomUsers();
+    const saved = this.saveCustomUsers();
+    if (!saved) {
+      // Rollback if save failed
+      delete this.users[userKey];
+      throw new Error('Failed to save user');
+    }
+    
+    console.log('User created successfully:', userKey, 'Total users:', Object.keys(this.users).length);
     return true;
   }
 
