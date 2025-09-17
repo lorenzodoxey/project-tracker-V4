@@ -12,11 +12,12 @@
 [[headers]]
   for = "/*"
   [headers.values]
-    X-Frame-Options = "SAMEORIGIN"
+    # Allow embedding in iframes from any origin (tighten to your subdomain later)
+    # Remove X-Frame-Options which conflicts with CSP frame-ancestors
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://jsonblob.com https://*.netlify.app https://api.netlify.com; img-src 'self' data:;"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src 'self' https://jsonblob.com https://*.netlify.app https://api.netlify.com; img-src 'self' data:; frame-ancestors *;"
 
 [[headers]]
   for = "*.js"
