@@ -831,6 +831,14 @@ function createUser() {
   try {
     auth.createUser(username, password, name, role);
     showNotification('User created successfully', 'success');
+    
+    // Clear the form
+    document.getElementById('newUsername').value = '';
+    document.getElementById('newUserName').value = '';
+    document.getElementById('newUserPassword').value = '';
+    document.getElementById('newUserRole').value = 'editor';
+    
+    // Refresh the admin panel to show the new user
     document.querySelector('.modal')?.remove();
     openAdminPanel();
   } catch (error) {

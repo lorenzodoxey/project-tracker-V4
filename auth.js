@@ -124,8 +124,25 @@ class SimpleAuth {
       throw new Error('Failed to save user');
     }
     
+    // Force refresh the users object to ensure it's up to date
+    this.refreshUsers();
+    
     console.log('User created successfully:', userKey, 'Total users:', Object.keys(this.users).length);
     return true;
+  }
+
+  // Refresh users from storage - useful after creating new users
+  refreshUsers() {
+    const customUsers = this.loadCustomUsers();
+    // Reset to defaults and add custom users
+    this.users = {
+      admin: { password: 'admin123', name: 'Administrator', role: 'admin' },
+      mia: { password: 'mia123', name: 'Mia', role: 'editor' },
+      leo: { password: 'leo123', name: 'Leo', role: 'editor' },
+      kai: { password: 'kai123', name: 'Kai', role: 'editor' },
+      ...customUsers
+    };
+    console.log('Users refreshed:', Object.keys(this.users));
   }
 
   updateUser(username, updates) {
