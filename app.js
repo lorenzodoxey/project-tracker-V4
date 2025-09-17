@@ -791,38 +791,58 @@ async function openAdminPanel() {
       </div>
       <div class="admin-sections">
         <div class="admin-section">
-          <h4>Users</h4>
+          <div class="admin-section-header"><h4>Users</h4></div>
           <div class="users-list">
             ${users.map(user => `
               <div class="user-item">
-                <span><strong>${escapeHtml(user.name)}</strong> (${user.username}) - ${user.role}</span>
-                ${user.username !== 'admin' ? 
-                  `<button onclick="deleteUser('${user.username}')" class="btn warning">Delete</button>` : ''
-                }
+                <div class="user-item-row">
+                  <div class="user-ident">
+                    <strong>${escapeHtml(user.name)}</strong> <span class="muted">(${user.username})</span> — <span class="role-tag ${user.role}">${user.role}</span>
+                  </div>
+                  <div class="user-actions">
+                    ${user.username !== 'admin' ? `<button onclick=\"deleteUser('${user.username}')\" class=\"btn warning btn-small\">Delete</button>` : ''}
+                  </div>
+                </div>
               </div>
             `).join('')}
           </div>
           <div class="add-user">
-            <h5>Add New User</h5>
-            <input type="text" id="newUsername" placeholder="Username">
-            <input type="text" id="newUserName" placeholder="Display Name">
-            <input type="password" id="newUserPassword" placeholder="Password">
-            <div class="pill pill-select" style="margin-bottom:12px;">
-              <span style="color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">Role</span>
-              <select id="newUserRole" onchange="renderChannelAssignment()">
-                <option value="editor">Editor</option>
-                <option value="admin">Admin</option>
-              </select>
+            <div class="admin-section-header"><h4>Add New User</h4></div>
+            <div class="form-grid">
+              <div class="form-group full-width">
+                <label>Username</label>
+                <input type="text" id="newUsername" placeholder="e.g., editor_jane" />
+              </div>
+              <div class="form-group full-width">
+                <label>Display Name</label>
+                <input type="text" id="newUserName" placeholder="e.g., Jane Doe" />
+              </div>
+              <div class="form-group full-width">
+                <label>Password</label>
+                <input type="password" id="newUserPassword" placeholder="Enter password" />
+              </div>
+              <div class="form-group full-width">
+                <label>Role</label>
+                <div class="pill pill-select">
+                  <span>Role</span>
+                  <select id="newUserRole" onchange="renderChannelAssignment()">
+                    <option value="editor">Editor</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+              <div class="form-group full-width" id="channelAssignmentContainer"></div>
             </div>
-            <div id="channelAssignmentContainer"></div>
-            <button class="btn primary" style="width:100%;margin-top:8px;" onclick="createUser()">Create User</button>
+            <div class="form-actions">
+              <button class="btn primary" style="width:100%;" onclick="createUser()">Create User</button>
+            </div>
           </div>
         </div>
       </div>
     </div>
   `;
 // Render channel assignment checkboxes for editors in admin panel
-function renderChannelAssignment() {
+window.renderChannelAssignment = function() {
   const modal = document.getElementById('adminPanelDynamic');
   if (!modal) return;
   const role = modal.querySelector('#newUserRole')?.value;
@@ -836,10 +856,10 @@ function renderChannelAssignment() {
   const channels = (window.appState?.channels && Array.isArray(window.appState.channels)) ? window.appState.channels : ["Main Brand", "Clips Channel", "Client Channel"];
   container.innerHTML = `
     <div class="channel-assignment">
-      <label style="color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">Assign Channels</label>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;">
+      <label>Assign Channels</label>
+      <div class="tiles" style="margin-top:8px;">
         ${channels.map(ch => `
-          <label class="channel-checkbox"><input type="checkbox" class="channel-assign-checkbox" value="${escapeHtml(ch)}"> ${escapeHtml(ch)}</label>
+          <label class="channel-tile"><input type="checkbox" class="channel-assign-checkbox" value="${escapeHtml(ch)}"> <span>${escapeHtml(ch)}</span></label>
         `).join('')}
       </div>
     </div>
