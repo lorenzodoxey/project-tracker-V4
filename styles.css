@@ -838,3 +838,195 @@ header { display: flex; align-items: center; justify-content: space-between; mar
   color: var(--muted);
   font-style: italic;
 }
+
+/* Admin Panel Styles */
+.admin-sections {
+  padding: 32px;
+}
+
+.admin-section {
+  background: linear-gradient(145deg, rgba(10, 10, 15, 0.8), rgba(22, 22, 41, 0.6));
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 24px;
+  margin-bottom: 24px;
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.admin-section::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary), var(--accent), var(--success));
+  opacity: 0.8;
+}
+
+.admin-section h4 {
+  margin: 0 0 20px 0;
+  color: var(--primary);
+  font-size: 20px;
+  font-weight: 700;
+  text-shadow: 0 0 20px var(--glow);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-section h4::before {
+  content: '👥';
+  font-size: 24px;
+}
+
+.users-list {
+  margin-bottom: 32px;
+}
+
+.user-item {
+  background: linear-gradient(145deg, rgba(22, 22, 41, 0.9), rgba(26, 11, 46, 0.7));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 20px;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+  position: relative;
+  overflow: hidden;
+}
+
+.user-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+  border-color: var(--primary);
+}
+
+.user-item span {
+  color: var(--text);
+  font-weight: 500;
+  font-size: 15px;
+}
+
+.user-item strong {
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.add-user {
+  background: linear-gradient(145deg, rgba(0, 212, 255, 0.1), rgba(255, 107, 53, 0.08));
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 20px;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+.add-user::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  opacity: 0.6;
+}
+
+.add-user h5 {
+  margin: 0 0 20px 0;
+  color: var(--accent);
+  font-size: 18px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.add-user h5::before {
+  content: '➕';
+  font-size: 20px;
+}
+
+.add-user input,
+.add-user select {
+  width: 100%;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  background: linear-gradient(145deg, rgba(22, 22, 41, 0.9), rgba(26, 11, 46, 0.8));
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-size: 15px;
+  font-family: inherit;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  backdrop-filter: blur(10px);
+}
+
+.add-user input:focus,
+.add-user select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--glow);
+  background: linear-gradient(145deg, rgba(22, 22, 41, 1), rgba(26, 11, 46, 0.9));
+  transform: translateY(-1px);
+}
+
+.add-user input::placeholder {
+  color: var(--muted);
+  font-style: italic;
+}
+
+.add-user button {
+  width: 100%;
+  padding: 16px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  border: none;
+  border-radius: 14px;
+  color: white;
+  font-weight: 700;
+  font-size: 16px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 6px 20px rgba(0, 212, 255, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.add-user button:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 12px 30px rgba(0, 212, 255, 0.5);
+  filter: brightness(1.1);
+}
+
+.add-user button:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* User Role Indicators */
+.user-item span strong:after {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-left: 8px;
+  background: var(--success);
+}
+
+.user-item:has-text("admin") span strong:after {
+  background: var(--primary);
+  box-shadow: 0 0 10px var(--glow);
+}
+
+.user-item:has-text("editor") span strong:after {
+  background: var(--accent);
+  box-shadow: 0 0 10px var(--glow-orange);
+}

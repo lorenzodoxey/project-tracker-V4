@@ -100,7 +100,7 @@ class SimpleAuth {
   }
 
   // Admin functions
-  createUser(username, password, name, role = 'editor') {
+  async createUser(username, password, name, role = 'editor') {
     const session = this.getCurrentSession();
     if (!session || session.role !== 'admin') {
       throw new Error('Admin access required');
@@ -161,7 +161,7 @@ class SimpleAuth {
     return true;
   }
 
-  deleteUser(username) {
+  async deleteUser(username) {
     const session = this.getCurrentSession();
     if (!session || session.role !== 'admin') {
       throw new Error('Admin access required');
@@ -176,7 +176,7 @@ class SimpleAuth {
     return true;
   }
 
-  getAllUsers() {
+  async getAllUsers() {
     const session = this.getCurrentSession();
     if (!session || session.role !== 'admin') {
       throw new Error('Admin access required');
