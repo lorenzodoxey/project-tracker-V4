@@ -21,6 +21,8 @@ class SimpleAuth {
     this.users = { ...this.users, ...customUsers };
     console.log('Auth initialized. Total users:', Object.keys(this.users).length);
     console.log('Users:', Object.keys(this.users));
+    console.log('Custom users loaded:', Object.keys(customUsers));
+    console.log('Full user data:', this.users);
   }
 
   loadCustomUsers() {
@@ -60,8 +62,11 @@ class SimpleAuth {
     console.log('Login attempt for:', userKey);
     console.log('Available users:', Object.keys(this.users));
     console.log('User found:', !!user);
+    console.log('User data:', user);
+    console.log('Password matches:', user ? user.password === password : 'N/A');
     
     if (!user || user.password !== password) {
+      console.log('Login failed - user not found or password mismatch');
       throw new Error('Invalid username or password');
     }
 
@@ -143,6 +148,7 @@ class SimpleAuth {
       ...customUsers
     };
     console.log('Users refreshed:', Object.keys(this.users));
+    console.log('Custom users after refresh:', Object.keys(customUsers));
   }
 
   updateUser(username, updates) {
@@ -192,6 +198,16 @@ class SimpleAuth {
 
 // Initialize auth system
 window.auth = new SimpleAuth();
+
+// Debug function for testing
+window.debugAuth = function() {
+  console.log('=== AUTH DEBUG INFO ===');
+  console.log('All users:', Object.keys(auth.users));
+  console.log('User data:', auth.users);
+  console.log('LocalStorage data:', localStorage.getItem(auth.storageKey));
+  console.log('Custom users only:', JSON.parse(localStorage.getItem(auth.storageKey) || '{}'));
+  console.log('=======================');
+};
 
 // Backward compatibility
 window.userManager = {
