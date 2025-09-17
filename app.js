@@ -789,53 +789,52 @@ async function openAdminPanel() {
         <h3>Admin Panel</h3>
         <button onclick="this.closest('.modal').remove()" class="modal-close-btn">×</button>
       </div>
-      <div class="admin-sections">
+      <div class="modal-body">
         <div class="admin-section">
-          <div class="admin-section-header"><h4>Users</h4></div>
+          <h4><span class="section-icon">👥</span> Users</h4>
           <div class="users-list">
             ${users.map(user => `
-              <div class="user-item">
-                <div class="user-item-row">
-                  <div class="user-ident">
-                    <strong>${escapeHtml(user.name)}</strong> <span class="muted">(${user.username})</span> — <span class="role-tag ${user.role}">${user.role}</span>
-                  </div>
-                  <div class="user-actions">
-                    ${user.username !== 'admin' ? `<button onclick=\"deleteUser('${user.username}')\" class=\"btn warning btn-small\">Delete</button>` : ''}
-                  </div>
+              <div class="user-row">
+                <div class="user-info">
+                  <div class="user-name">${escapeHtml(user.name)}</div>
+                  <div class="user-details">@${user.username} • ${user.role}</div>
                 </div>
+                ${user.username !== 'admin' ? 
+                  `<button onclick="deleteUser('${user.username}')" class="btn-delete">Delete</button>` : ''
+                }
               </div>
             `).join('')}
           </div>
-          <div class="add-user">
-            <div class="admin-section-header"><h4>Add New User</h4></div>
-            <div class="form-grid">
-              <div class="form-group full-width">
+        </div>
+        
+        <div class="admin-section">
+          <h4><span class="section-icon">➕</span> Add New User</h4>
+          <div class="add-user-form">
+            <div class="form-row">
+              <div class="form-group">
                 <label>Username</label>
-                <input type="text" id="newUsername" placeholder="e.g., editor_jane" />
+                <input type="text" id="newUsername" placeholder="e.g., editor_jane">
               </div>
-              <div class="form-group full-width">
+              <div class="form-group">
                 <label>Display Name</label>
-                <input type="text" id="newUserName" placeholder="e.g., Jane Doe" />
+                <input type="text" id="newUserName" placeholder="e.g., Jane Doe">
               </div>
-              <div class="form-group full-width">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
                 <label>Password</label>
-                <input type="password" id="newUserPassword" placeholder="Enter password" />
+                <input type="password" id="newUserPassword" placeholder="Enter password">
               </div>
-              <div class="form-group full-width">
+              <div class="form-group">
                 <label>Role</label>
-                <div class="pill pill-select">
-                  <span>Role</span>
-                  <select id="newUserRole" onchange="renderChannelAssignment()">
-                    <option value="editor">Editor</option>
-                    <option value="admin">Admin</option>
-                  </select>
-                </div>
+                <select id="newUserRole" onchange="window.renderChannelAssignment()">
+                  <option value="editor">Editor</option>
+                  <option value="admin">Admin</option>
+                </select>
               </div>
-              <div class="form-group full-width" id="channelAssignmentContainer"></div>
             </div>
-            <div class="form-actions">
-              <button class="btn primary" style="width:100%;" onclick="createUser()">Create User</button>
-            </div>
+            <div id="channelAssignmentContainer"></div>
+            <button class="btn primary create-user-btn" onclick="createUser()">Create User</button>
           </div>
         </div>
       </div>
@@ -857,9 +856,12 @@ window.renderChannelAssignment = function() {
   container.innerHTML = `
     <div class="channel-assignment">
       <label>Assign Channels</label>
-      <div class="tiles" style="margin-top:8px;">
+      <div class="channel-checkboxes">
         ${channels.map(ch => `
-          <label class="channel-tile"><input type="checkbox" class="channel-assign-checkbox" value="${escapeHtml(ch)}"> <span>${escapeHtml(ch)}</span></label>
+          <label class="channel-checkbox">
+            <input type="checkbox" class="channel-assign-checkbox" value="${escapeHtml(ch)}">
+            <span>${escapeHtml(ch)}</span>
+          </label>
         `).join('')}
       </div>
     </div>
