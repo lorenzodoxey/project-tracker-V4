@@ -827,7 +827,10 @@ async function createUser() {
   const password = document.getElementById('newUserPassword').value.trim();
   const role = document.getElementById('newUserRole').value;
   
+  console.log('Create user values:', { username, name, password: password ? '***' : '', role });
+  
   if (!username || !name || !password) {
+    console.log('Validation failed:', { username: !!username, name: !!name, password: !!password });
     showNotification('All fields are required', 'error');
     return;
   }
