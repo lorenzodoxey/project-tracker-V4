@@ -279,8 +279,8 @@ class GlobalAuth {
     }
 
     const userKey = username.toLowerCase();
-    if (['admin', 'mia', 'leo', 'kai'].includes(userKey)) {
-      throw new Error('Cannot delete default users');
+    if (userKey === 'admin') {
+      throw new Error('Cannot delete default admin');
     }
 
     if (!this.users[userKey]) {

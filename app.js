@@ -796,7 +796,7 @@ async function openAdminPanel() {
             ${users.map(user => `
               <div class="user-item">
                 <span><strong>${escapeHtml(user.name)}</strong> (${user.username}) - ${user.role}</span>
-                ${!['admin', 'mia', 'leo', 'kai'].includes(user.username) ? 
+                ${user.username !== 'admin' ? 
                   `<button onclick="deleteUser('${user.username}')" class="btn warning">Delete</button>` : ''
                 }
               </div>
