@@ -4,9 +4,11 @@
 class GlobalAuth {
   constructor() {
     this.sessionKey = 'mhm-tracker-session';
-    // Using a different JSONBin endpoint that should work better
-    this.cloudEndpoint = 'https://api.jsonbin.io/v3/b/677a9e7aad19ca34f8c78074';
-    this.apiKey = '$2a$10$liLMgaGZEfQW.T9t1pSRJuQCsWk88mMNtMoRW6kt1X2WXZ.uGB9WK';
+    // Cloud storage is disabled by default (keyed services are unreliable from client-only apps)
+    // If you later provide a working endpoint, set cloudEnabled=true and fill in endpoint/keys.
+    this.cloudEnabled = false;
+    this.cloudEndpoint = '';
+    this.apiKey = '';
     this.users = {
       admin: { password: 'admin123', name: 'Administrator', role: 'admin' },
       mia: { password: 'mia123', name: 'Mia', role: 'editor' },
@@ -18,16 +20,27 @@ class GlobalAuth {
   }
 
   async init() {
-    console.log('🌐 Initializing global authentication...');
-    try {
-      await this.loadUsersFromCloud();
-      console.log('✅ Global auth ready. Users:', Object.keys(this.users).length);
-    } catch (error) {
-      console.warn('⚠️ Using offline mode:', error.message);
+    console.log('🌐 Initializing authentication...');
+    // Always load local fallback first so app is usable offline and cross-refresh
+    const localUsers = this.loadLocalFallback();
+    this.users = { ...this.users, ...localUsers };
+
+    if (this.cloudEnabled) {
+      try {
+        await this.loadUsersFromCloud();
+        console.log('✅ Auth ready (cloud+local). Users:', Object.keys(this.users).length);
+      } catch (error) {
+        console.warn('⚠️ Cloud unavailable, using local storage only:', error.message);
+      }
+    } else {
+      console.log('🛜 Cloud sync disabled. Using local storage only.');
     }
   }
 
   async loadUsersFromCloud() {
+    if (!this.cloudEnabled) {
+      return false;
+    }
     try {
       const response = await fetch(`${this.cloudEndpoint}/latest`, {
         method: 'GET',
@@ -85,6 +98,11 @@ class GlobalAuth {
   }
 
   async saveUsersToCloud() {
+    if (!this.cloudEnabled) {
+      // Always save to local fallback so data persists in this browser
+      this.saveLocalFallback();
+      return false;
+    }
     try {
       // Only save custom users (not defaults)
       const customUsers = {};
@@ -127,11 +145,21 @@ class GlobalAuth {
   async login(username, password) {
     const userKey = username.toLowerCase();
     
-    // Always try to load latest users, but don't fail if cloud is down
-    try {
-      await this.loadUsersFromCloud();
-    } catch (error) {
-      console.warn('⚠️ Using cached users for login');
+    // Try to refresh from cloud if enabled; otherwise ensure we have local fallback
+    if (this.cloudEnabled) {
+      try {
+        await this.loadUsersFromCloud();
+      } catch (error) {
+        console.warn('⚠️ Using cached users for login');
+      }
+    } else {
+      const localUsers = this.loadLocalFallback();
+      this.users = { ...{
+        admin: { password: 'admin123', name: 'Administrator', role: 'admin' },
+        mia: { password: 'mia123', name: 'Mia', role: 'editor' },
+        leo: { password: 'leo123', name: 'Leo', role: 'editor' },
+        kai: { password: 'kai123', name: 'Kai', role: 'editor' }
+      }, ...localUsers };
     }
     
     const user = this.users[userKey];
@@ -197,13 +225,11 @@ class GlobalAuth {
       created: Date.now()
     };
 
-    // Try to save to cloud, but don't fail if it's down
-    const saved = await this.saveUsersToCloud();
-    if (saved) {
-      console.log('✅ User created and saved globally:', userKey);
-    } else {
-      console.log('⚠️ User created locally (cloud save failed):', userKey);
-    }
+    // Persist
+    await this.saveUsersToCloud();
+    // Always save local fallback too
+    this.saveLocalFallback();
+    console.log('✅ User created:', userKey, '| Cloud:', this.cloudEnabled ? 'attempted' : 'disabled');
     
     return true;
   }
@@ -223,11 +249,9 @@ class GlobalAuth {
     // Apply updates
     Object.assign(user, updates, { lastModified: Date.now() });
 
-    // Save to cloud
-    const saved = await this.saveUsersToCloud();
-    if (!saved) {
-      throw new Error('Failed to update user in cloud storage');
-    }
+    // Persist
+    await this.saveUsersToCloud();
+    this.saveLocalFallback();
 
     return true;
   }
@@ -250,11 +274,9 @@ class GlobalAuth {
     // Remove user
     delete this.users[userKey];
 
-    // Save to cloud
-    const saved = await this.saveUsersToCloud();
-    if (!saved) {
-      throw new Error('Failed to delete user from cloud storage');
-    }
+    // Persist
+    await this.saveUsersToCloud();
+    this.saveLocalFallback();
 
     return true;
   }
@@ -265,11 +287,21 @@ class GlobalAuth {
       throw new Error('Admin access required');
     }
 
-    // Try to load latest users from cloud, but don't fail if it's down
-    try {
-      await this.loadUsersFromCloud();
-    } catch (error) {
-      console.warn('⚠️ Using cached users for admin panel');
+    // Try to refresh from cloud if enabled; always include local fallback
+    if (this.cloudEnabled) {
+      try {
+        await this.loadUsersFromCloud();
+      } catch (error) {
+        console.warn('⚠️ Using cached users for admin panel');
+      }
+    } else {
+      const localUsers = this.loadLocalFallback();
+      this.users = { ...{
+        admin: { password: 'admin123', name: 'Administrator', role: 'admin' },
+        mia: { password: 'mia123', name: 'Mia', role: 'editor' },
+        leo: { password: 'leo123', name: 'Leo', role: 'editor' },
+        kai: { password: 'kai123', name: 'Kai', role: 'editor' }
+      }, ...localUsers };
     }
 
     return Object.keys(this.users).map(username => ({
@@ -284,11 +316,50 @@ class GlobalAuth {
   // Force refresh users from cloud (useful for admin panel)
   async refreshUsers() {
     try {
-      await this.loadUsersFromCloud();
-      console.log('🔄 Users refreshed from cloud');
+      if (this.cloudEnabled) {
+        await this.loadUsersFromCloud();
+        console.log('🔄 Users refreshed from cloud');
+      }
+      // Always refresh from local fallback as well
+      const localUsers = this.loadLocalFallback();
+      this.users = { ...{
+        admin: { password: 'admin123', name: 'Administrator', role: 'admin' },
+        mia: { password: 'mia123', name: 'Mia', role: 'editor' },
+        leo: { password: 'leo123', name: 'Leo', role: 'editor' },
+        kai: { password: 'kai123', name: 'Kai', role: 'editor' }
+      }, ...localUsers, ...this.users };
+      console.log('🔄 Users refreshed from local storage');
       return true;
     } catch (error) {
       console.error('❌ Failed to refresh users:', error.message);
+      return false;
+    }
+  }
+
+  // --- Manual Sync helpers (copy/paste) ---
+  exportUsers() {
+    const customUsers = this.loadLocalFallback();
+    const payload = JSON.stringify(customUsers);
+    // Base64 encode for compact sharing
+    return btoa(unescape(encodeURIComponent(payload)));
+  }
+
+  importUsers(encoded) {
+    try {
+      const json = decodeURIComponent(escape(atob(encoded.trim())));
+      const incoming = JSON.parse(json);
+      // Merge and persist
+      const merged = { ...this.loadLocalFallback(), ...incoming };
+      localStorage.setItem('mhm-tracker-users-fallback', JSON.stringify(merged));
+      this.users = { ...{
+        admin: { password: 'admin123', name: 'Administrator', role: 'admin' },
+        mia: { password: 'mia123', name: 'Mia', role: 'editor' },
+        leo: { password: 'leo123', name: 'Leo', role: 'editor' },
+        kai: { password: 'kai123', name: 'Kai', role: 'editor' }
+      }, ...merged };
+      return true;
+    } catch (e) {
+      console.error('Failed to import users:', e);
       return false;
     }
   }
