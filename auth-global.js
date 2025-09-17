@@ -8,9 +8,11 @@ class GlobalAuth {
     // 1) Netlify Function on this site
     // 2) Public JSONBlob (no key) created for this project
     this.cloudEnabled = true;
+    // Order chosen to prefer a known-good public JSONBlob first for speed while
+    // the Netlify Function is being configured. Timeouts help fail fast.
     this.cloudEndpoints = [
-      { type: 'netlify', url: '/.netlify/functions/users' },
-      { type: 'jsonblob', url: 'https://jsonblob.com/api/jsonBlob/1417956693685493760' }
+      { type: 'jsonblob', url: 'https://jsonblob.com/api/jsonBlob/1417956693685493760', timeout: 6000 },
+      { type: 'netlify', url: '/.netlify/functions/users', timeout: 1200 }
     ];
     this.apiKey = '';
     this.users = {
@@ -46,7 +48,8 @@ class GlobalAuth {
     if (!this.cloudEnabled) { return false; }
     const tryFetch = async (endpoint) => {
       const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 7000);
+      const to = endpoint.timeout || 7000;
+      const t = setTimeout(() => ctrl.abort(), to);
       try {
         const res = await fetch(endpoint.url, { method: 'GET', headers: { 'Accept': 'application/json' }, mode: 'cors', signal: ctrl.signal });
         clearTimeout(t);
@@ -124,7 +127,8 @@ class GlobalAuth {
       let anyOk = false;
       for (const { ep, body } of payloads) {
         const ctrl = new AbortController();
-        const t = setTimeout(() => ctrl.abort(), 7000);
+        const to = ep.timeout || 7000;
+        const t = setTimeout(() => ctrl.abort(), to);
         try {
           const res = await fetch(ep.url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, mode: 'cors', body: JSON.stringify(body), signal: ctrl.signal });
           clearTimeout(t);
