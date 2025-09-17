@@ -825,15 +825,27 @@ async function openAdminPanel() {
 }
 
 async function createUser() {
-  const username = document.getElementById('newUsername').value.trim();
-  const name = document.getElementById('newUserName').value.trim();
-  const password = document.getElementById('newUserPassword').value.trim();
-  const role = document.getElementById('newUserRole').value;
+  const modal = document.getElementById('adminPanelDynamic') || document;
+  const usernameEl = modal.querySelector('#newUsername');
+  const nameEl = modal.querySelector('#newUserName');
+  const passwordEl = modal.querySelector('#newUserPassword');
+  const roleEl = modal.querySelector('#newUserRole');
+
+  const username = (usernameEl?.value || '').trim();
+  const name = (nameEl?.value || '').trim();
+  const password = (passwordEl?.value || '').trim();
+  const role = roleEl?.value || '';
   
   console.log('Create user values:', { username, name, password: password ? '***' : '', role });
   
   if (!username || !name || !password) {
     console.log('Validation failed:', { username: !!username, name: !!name, password: !!password });
+    // Highlight missing fields
+    if (usernameEl && !username) usernameEl.classList.add('input-error');
+    if (nameEl && !name) nameEl.classList.add('input-error');
+    if (passwordEl && !password) passwordEl.classList.add('input-error');
+    // Remove highlight when user starts typing
+    [usernameEl, nameEl, passwordEl].forEach(el => el && el.addEventListener('input', () => el.classList.remove('input-error'), { once: true }));
     showNotification('All fields are required', 'error');
     return;
   }
@@ -843,10 +855,10 @@ async function createUser() {
     showNotification('User created successfully and synced globally', 'success');
     
     // Clear the form
-    document.getElementById('newUsername').value = '';
-    document.getElementById('newUserName').value = '';
-    document.getElementById('newUserPassword').value = '';
-    document.getElementById('newUserRole').value = 'editor';
+  if (usernameEl) usernameEl.value = '';
+  if (nameEl) nameEl.value = '';
+  if (passwordEl) passwordEl.value = '';
+  if (roleEl) roleEl.value = 'editor';
     
     // Refresh the admin panel to show the new user
     document.getElementById('adminPanelDynamic')?.remove();
