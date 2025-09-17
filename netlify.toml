@@ -2,6 +2,13 @@
   publish = "."
   command = "echo 'MHM Project Tracker - Ready for deployment'"
 
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[blobs]
+  region = "auto"
+
 [[headers]]
   for = "/*"
   [headers.values]

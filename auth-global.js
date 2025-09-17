@@ -4,11 +4,10 @@
 class GlobalAuth {
   constructor() {
     this.sessionKey = 'mhm-tracker-session';
-    // Cloud storage is disabled by default (keyed services are unreliable from client-only apps)
-    // If you later provide a working endpoint, set cloudEnabled=true and fill in endpoint/keys.
-    this.cloudEnabled = false;
-    this.cloudEndpoint = '';
-    this.apiKey = '';
+  // Use Netlify Function as cloud storage
+  this.cloudEnabled = true;
+  this.cloudEndpoint = '/.netlify/functions/users';
+  this.apiKey = '';
     this.users = {
       admin: { password: 'admin123', name: 'Administrator', role: 'admin' },
       mia: { password: 'mia123', name: 'Mia', role: 'editor' },
@@ -38,22 +37,17 @@ class GlobalAuth {
   }
 
   async loadUsersFromCloud() {
-    if (!this.cloudEnabled) {
-      return false;
-    }
+    if (!this.cloudEnabled) { return false; }
     try {
-      const response = await fetch(`${this.cloudEndpoint}/latest`, {
+      const response = await fetch(`${this.cloudEndpoint}`, {
         method: 'GET',
-        headers: {
-          'X-Access-Key': this.apiKey,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Content-Type': 'application/json' },
         mode: 'cors'
       });
       
       if (response.ok) {
-        const data = await response.json();
-        const cloudUsers = data.record || {};
+  const data = await response.json();
+  const cloudUsers = data.users || {};
         
         // Merge cloud users with default users
         this.users = { ...this.users, ...cloudUsers };
@@ -117,10 +111,7 @@ class GlobalAuth {
 
       const response = await fetch(this.cloudEndpoint, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Access-Key': this.apiKey
-        },
+        headers: { 'Content-Type': 'application/json' },
         mode: 'cors',
         body: JSON.stringify(customUsers)
       });
