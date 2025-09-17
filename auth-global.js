@@ -218,7 +218,7 @@ class GlobalAuth {
   }
 
   // Admin functions
-  async createUser(username, password, name, role = 'editor') {
+  async createUser(username, password, name, role = 'editor', channels = []) {
     const session = this.getCurrentSession();
     if (!session || session.role !== 'admin') {
       throw new Error('Admin access required');
@@ -234,6 +234,7 @@ class GlobalAuth {
       password: password,
       name: name,
       role: role,
+      assignedChannels: Array.isArray(channels) ? channels : [],
       created: Date.now()
     };
 
@@ -259,6 +260,9 @@ class GlobalAuth {
     }
 
     // Apply updates
+    if (updates.assignedChannels) {
+      user.assignedChannels = Array.isArray(updates.assignedChannels) ? updates.assignedChannels : [];
+    }
     Object.assign(user, updates, { lastModified: Date.now() });
 
     // Persist

@@ -807,18 +807,47 @@ async function openAdminPanel() {
             <input type="text" id="newUsername" placeholder="Username">
             <input type="text" id="newUserName" placeholder="Display Name">
             <input type="password" id="newUserPassword" placeholder="Password">
-            <select id="newUserRole">
-              <option value="editor">Editor</option>
-              <option value="admin">Admin</option>
-            </select>
-            <button onclick="createUser()">Create User</button>
+            <div class="pill pill-select" style="margin-bottom:12px;">
+              <span style="color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">Role</span>
+              <select id="newUserRole" onchange="renderChannelAssignment()">
+                <option value="editor">Editor</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div id="channelAssignmentContainer"></div>
+            <button class="btn primary" style="width:100%;margin-top:8px;" onclick="createUser()">Create User</button>
           </div>
         </div>
       </div>
     </div>
   `;
+// Render channel assignment checkboxes for editors in admin panel
+function renderChannelAssignment() {
+  const modal = document.getElementById('adminPanelDynamic');
+  if (!modal) return;
+  const role = modal.querySelector('#newUserRole')?.value;
+  const container = modal.querySelector('#channelAssignmentContainer');
+  if (!container) return;
+  if (role === 'admin') {
+    container.innerHTML = '';
+    return;
+  }
+  // Get channels from appState or fallback
+  const channels = (window.appState?.channels && Array.isArray(window.appState.channels)) ? window.appState.channels : ["Main Brand", "Clips Channel", "Client Channel"];
+  container.innerHTML = `
+    <div class="channel-assignment">
+      <label style="color:var(--muted);font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;">Assign Channels</label>
+      <div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;">
+        ${channels.map(ch => `
+          <label class="channel-checkbox"><input type="checkbox" class="channel-assign-checkbox" value="${escapeHtml(ch)}"> ${escapeHtml(ch)}</label>
+        `).join('')}
+      </div>
+    </div>
+  `;
+}
   
-    document.body.appendChild(modal);
+  document.body.appendChild(modal);
+  renderChannelAssignment();
   } catch (error) {
     showNotification('Failed to load users: ' + error.message, 'error');
   }
@@ -835,6 +864,15 @@ async function createUser() {
   const name = (nameEl?.value || '').trim();
   const password = (passwordEl?.value || '').trim();
   const role = roleEl?.value || '';
+
+  // Gather assigned channels for editors
+  let assignedChannels = [];
+  if (role === 'editor') {
+    assignedChannels = Array.from(modal.querySelectorAll('.channel-assign-checkbox:checked')).map(cb => cb.value);
+  } else if (role === 'admin') {
+    // Admins get all channels
+    assignedChannels = (window.appState?.channels && Array.isArray(window.appState.channels)) ? window.appState.channels : ["Main Brand", "Clips Channel", "Client Channel"];
+  }
   
   console.log('Create user values:', { username, name, password: password ? '***' : '', role });
   
@@ -851,15 +889,15 @@ async function createUser() {
   }
   
   try {
-    await auth.createUser(username, password, name, role);
+    await auth.createUser(username, password, name, role, assignedChannels);
     showNotification('User created successfully and synced globally', 'success');
-    
     // Clear the form
-  if (usernameEl) usernameEl.value = '';
-  if (nameEl) nameEl.value = '';
-  if (passwordEl) passwordEl.value = '';
-  if (roleEl) roleEl.value = 'editor';
-    
+    if (usernameEl) usernameEl.value = '';
+    if (nameEl) nameEl.value = '';
+    if (passwordEl) passwordEl.value = '';
+    if (roleEl) roleEl.value = 'editor';
+    // Uncheck all channel checkboxes
+    Array.from(modal.querySelectorAll('.channel-assign-checkbox')).forEach(cb => { cb.checked = false; });
     // Refresh the admin panel to show the new user
     document.getElementById('adminPanelDynamic')?.remove();
     openAdminPanel();

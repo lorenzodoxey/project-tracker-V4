@@ -1,3 +1,12 @@
+/* Pill-style select for admin panel role dropdown */
+.pill-select { display: flex; align-items: center; gap: 12px; background: linear-gradient(145deg, rgba(22, 22, 41, 0.9), rgba(26, 11, 46, 0.9)); border: 1px solid var(--border); border-radius: 30px; padding: 10px 20px; margin-bottom: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+.pill-select select { background: transparent; border: none; color: var(--text); outline: none; font-family: inherit; font-size: 14px; font-weight: 600; min-width: 120px; appearance: none; background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2300d4ff' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8 4 4 4-4'/%3e%3c/svg%3e"); background-position: right 10px center; background-repeat: no-repeat; background-size: 16px 12px; padding-right: 32px; cursor: pointer; border-radius: 18px; }
+.pill-select select option { background: var(--panel); color: var(--text); padding: 10px 15px; border: none; }
+
+/* Channel assignment checkboxes */
+.channel-assignment { margin-bottom: 10px; }
+.channel-checkbox { display: flex; align-items: center; gap: 6px; background: linear-gradient(145deg, rgba(22,22,41,0.7), rgba(26,11,46,0.7)); border: 1px solid var(--border); border-radius: 14px; padding: 8px 16px; font-size: 13px; color: var(--text); font-weight: 600; box-shadow: 0 1px 6px rgba(0,0,0,0.07); }
+.channel-assign-checkbox { accent-color: var(--primary); width: 18px; height: 18px; }
 /* Enhanced Futuristic Multi-User Theme - PART 1 */
 :root {
   --primary: #00d4ff; --secondary: #1a0b2e; --accent: #ff6b35; --bg: #0a0a0f;
