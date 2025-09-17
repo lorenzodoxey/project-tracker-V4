@@ -13,7 +13,8 @@
   for = "/*"
   [headers.values]
     # Allow embedding in iframes from any origin (tighten to your subdomain later)
-    # Remove X-Frame-Options which conflicts with CSP frame-ancestors
+    # Explicitly clear X-Frame-Options to override Netlify default
+    X-Frame-Options = ""
     X-XSS-Protection = "1; mode=block"
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
