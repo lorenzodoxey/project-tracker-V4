@@ -883,6 +883,8 @@ header { display: flex; align-items: center; justify-content: space-between; mar
 /* Admin Panel Styles */
 .admin-sections {
   padding: 32px;
+  max-height: 70vh;
+  overflow-y: auto;
 }
 
 .admin-section {
@@ -925,6 +927,8 @@ header { display: flex; align-items: center; justify-content: space-between; mar
 
 .users-list {
   margin-bottom: 32px;
+  max-height: 300px;
+  overflow-y: auto;
 }
 
 .user-item {

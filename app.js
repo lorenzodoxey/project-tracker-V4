@@ -811,34 +811,11 @@ async function openAdminPanel() {
             <button onclick="createUser()">Create User</button>
           </div>
         </div>
-        <div class="admin-section">
-          <h4>Sync Users (Manual)</h4>
-          <div class="form-grid">
-            <div class="form-group" style="grid-column: 1 / -1;">
-              <label>Export (copy this code)</label>
-              <textarea id="userSyncExport" rows="3" readonly></textarea>
-              <div class="actions" style="margin-top: 8px;">
-                <button class="btn secondary" onclick="copyUserExport()">Copy Code</button>
-                <button class="btn" onclick="refreshUserExport()">Refresh</button>
-              </div>
-            </div>
-            <div class="form-group" style="grid-column: 1 / -1;">
-              <label>Import (paste code here)</label>
-              <textarea id="userSyncImport" rows="3" placeholder="Paste exported code here..."></textarea>
-              <div class="actions" style="margin-top: 8px;">
-                <button class="btn" onclick="importUserData()">Import Users</button>
-              </div>
-            </div>
-            <p class="subtitle">Tip: Share the export code securely with your team to sync users across browsers.</p>
-          </div>
-        </div>
       </div>
     </div>
   `;
   
     document.body.appendChild(modal);
-    // Populate export textarea with current users
-    setTimeout(() => refreshUserExport(), 0);
   } catch (error) {
     showNotification('Failed to load users: ' + error.message, 'error');
   }
@@ -874,43 +851,6 @@ async function createUser() {
   } catch (error) {
     showNotification(error.message, 'error');
   }
-}
-
-function refreshUserExport() {
-  try {
-    const code = auth.exportUsers ? auth.exportUsers() : '';
-    const el = document.getElementById('userSyncExport');
-    if (el) el.value = code;
-  } catch {}
-}
-
-async function importUserData() {
-  const raw = (document.getElementById('userSyncImport')?.value || '').trim();
-  if (!raw) { showNotification('Paste a code to import', 'warning'); return; }
-  try {
-    const ok = auth.importUsers ? auth.importUsers(raw) : false;
-    if (ok) {
-      showNotification('Users imported successfully', 'success');
-      await auth.refreshUsers();
-      document.querySelector('.modal')?.remove();
-      openAdminPanel();
-    } else {
-      showNotification('Failed to import users', 'error');
-    }
-  } catch (e) {
-    showNotification('Invalid code', 'error');
-  }
-}
-
-function copyUserExport() {
-  const el = document.getElementById('userSyncExport');
-  if (!el || !el.value) { showNotification('Nothing to copy', 'warning'); return; }
-  navigator.clipboard.writeText(el.value).then(() => {
-    showNotification('Export code copied', 'success');
-  }).catch(() => {
-    el.select(); document.execCommand('copy');
-    showNotification('Export code copied', 'success');
-  });
 }
 
 async function deleteUser(username) {
@@ -998,6 +938,3 @@ window.addChannel = addChannel;
 window.removeChannel = removeChannel;
 window.createUser = createUser;
 window.deleteUser = deleteUser;
-window.refreshUserExport = refreshUserExport;
-window.importUserData = importUserData;
-window.copyUserExport = copyUserExport;
