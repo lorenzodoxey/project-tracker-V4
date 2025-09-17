@@ -4,16 +4,22 @@
 class GlobalAuth {
   constructor() {
     this.sessionKey = 'mhm-tracker-session';
-  // Use Netlify Function as cloud storage
-  this.cloudEnabled = true;
-  this.cloudEndpoint = '/.netlify/functions/users';
-  this.apiKey = '';
+    // Cloud persistence (multi-endpoint with fallback):
+    // 1) Netlify Function on this site
+    // 2) Public JSONBlob (no key) created for this project
+    this.cloudEnabled = true;
+    this.cloudEndpoints = [
+      { type: 'netlify', url: '/.netlify/functions/users' },
+      { type: 'jsonblob', url: 'https://jsonblob.com/api/jsonBlob/1417956693685493760' }
+    ];
+    this.apiKey = '';
     this.users = {
       admin: { password: 'admin123', name: 'Administrator', role: 'admin' },
       mia: { password: 'mia123', name: 'Mia', role: 'editor' },
       leo: { password: 'leo123', name: 'Leo', role: 'editor' },
       kai: { password: 'kai123', name: 'Kai', role: 'editor' }
     };
+  this.lastCloudOk = false;
     
     this.init();
   }
@@ -38,32 +44,36 @@ class GlobalAuth {
 
   async loadUsersFromCloud() {
     if (!this.cloudEnabled) { return false; }
-    try {
-      const response = await fetch(`${this.cloudEndpoint}`, {
-        method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'cors'
-      });
-      
-      if (response.ok) {
-  const data = await response.json();
-  const cloudUsers = data.users || {};
-        
-        // Merge cloud users with default users
-        this.users = { ...this.users, ...cloudUsers };
-        console.log('☁️ Loaded users from cloud:', Object.keys(cloudUsers));
+    const tryFetch = async (endpoint) => {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 7000);
+      try {
+        const res = await fetch(endpoint.url, { method: 'GET', headers: { 'Accept': 'application/json' }, mode: 'cors', signal: ctrl.signal });
+        clearTimeout(t);
+        if (!res.ok) return null;
+        const data = await res.json();
+        // Data shapes supported: {users:{...}} or direct {username:{...}}
+        const cloudUsers = (data && data.users && typeof data.users === 'object') ? data.users : (
+          data && !Array.isArray(data) && typeof data === 'object' ? data : {}
+        );
+        return cloudUsers;
+      } catch (e) { clearTimeout(t); return null; }
+    };
+
+    for (const ep of this.cloudEndpoints) {
+      const users = await tryFetch(ep);
+      if (users) {
+        this.users = { ...this.users, ...users };
+        console.log(`☁️ Loaded users from cloud (${ep.type})`, Object.keys(users));
+        this.lastCloudOk = true;
         return true;
-      } else {
-        console.log('📂 No cloud users found, using defaults');
-        return false;
       }
-    } catch (error) {
-      console.warn('⚠️ Cloud storage unavailable, using local fallback:', error.message);
-      // Try to load from localStorage as fallback
-      const localUsers = this.loadLocalFallback();
-      this.users = { ...this.users, ...localUsers };
-      return false;
     }
+    // Fallback to local
+    const localUsers = this.loadLocalFallback();
+    this.users = { ...this.users, ...localUsers };
+    this.lastCloudOk = false;
+    return false;
   }
 
   // Fallback to localStorage when cloud is unavailable
@@ -98,38 +108,45 @@ class GlobalAuth {
       return false;
     }
     try {
-      // Only save custom users (not defaults)
+      // Only save non-default users
       const customUsers = {};
       Object.keys(this.users).forEach(username => {
         if (!['admin', 'mia', 'leo', 'kai'].includes(username)) {
-          customUsers[username] = {
-            ...this.users[username],
-            lastModified: Date.now()
-          };
+          customUsers[username] = { ...this.users[username], lastModified: Date.now() };
         }
       });
 
-      const response = await fetch(this.cloudEndpoint, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        mode: 'cors',
-        body: JSON.stringify(customUsers)
-      });
+      const payloads = this.cloudEndpoints.map(ep => ({
+        ep,
+        body: ep.type === 'netlify' ? customUsers : { _meta: 'mhm-tracker-users', users: customUsers, _updated: Date.now() }
+      }));
 
-      if (response.ok) {
-        console.log('☁️ Users saved to cloud successfully');
-        // Also save to local fallback
-        this.saveLocalFallback();
-        return true;
-      } else {
-        console.warn('⚠️ Cloud save failed, using local fallback');
-        this.saveLocalFallback();
-        return true; // Return true so app continues working
+      let anyOk = false;
+      for (const { ep, body } of payloads) {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 7000);
+        try {
+          const res = await fetch(ep.url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, mode: 'cors', body: JSON.stringify(body), signal: ctrl.signal });
+          clearTimeout(t);
+          if (res.ok) { anyOk = true; }
+        } catch (e) { clearTimeout(t); /* ignore */ }
       }
+
+      if (anyOk) {
+        console.log('☁️ Users saved to cloud (one or more backends)');
+        this.saveLocalFallback();
+        this.lastCloudOk = true;
+      } else {
+        console.warn('⚠️ All cloud saves failed, using local fallback only');
+        this.saveLocalFallback();
+        this.lastCloudOk = false;
+      }
+      return true;
     } catch (error) {
       console.warn('⚠️ Cloud save error, using local fallback:', error.message);
       this.saveLocalFallback();
-      return true; // Return true so app continues working
+      this.lastCloudOk = false;
+      return true;
     }
   }
 
@@ -353,6 +370,10 @@ class GlobalAuth {
       console.error('Failed to import users:', e);
       return false;
     }
+  }
+
+  getCloudStatus() {
+    return { enabled: this.cloudEnabled, healthy: this.lastCloudOk };
   }
 }
 
