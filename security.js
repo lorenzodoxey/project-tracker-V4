@@ -21,7 +21,7 @@ const SECURITY_CONFIG = {
   // Cloud configuration
   cloudConfig: {
     useCloud: true,
-    binId: '66e77c85e41b4d34e4250a0b', // Fixed bin for user data
+    binId: '68c8db8d43b1c97be9447254', // Correct bin ID
     apiKey: '$2a$10$liLMgaGZEfQW.T9t1pSRJuQCsWk88mMNtMoRW6kt1X2WXZ.uGB9WK'
   },
   
@@ -100,7 +100,7 @@ const SECURITY_CONFIG = {
       try {
         const response = await fetch(`https://api.jsonbin.io/v3/b/${SECURITY_CONFIG.cloudConfig.binId}/latest`, {
           headers: {
-            'X-Master-Key': SECURITY_CONFIG.cloudConfig.apiKey
+            'X-Access-Key': SECURITY_CONFIG.cloudConfig.apiKey
           }
         });
         
@@ -127,7 +127,7 @@ const SECURITY_CONFIG = {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            'X-Master-Key': SECURITY_CONFIG.cloudConfig.apiKey
+            'X-Access-Key': SECURITY_CONFIG.cloudConfig.apiKey
           },
           body: JSON.stringify(userData)
         });
