@@ -772,14 +772,15 @@ function removeChannel(channel) {
 }
 
 // Admin panel
-function openAdminPanel() {
+async function openAdminPanel() {
   if (appState.currentUser?.role !== 'admin') return;
   
-  const users = auth.getAllUsers();
-  
-  const modal = document.createElement('div');
-  modal.className = 'modal';
-  modal.innerHTML = `
+  try {
+    const users = await auth.getAllUsers();
+    
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.innerHTML = `
     <div class="modal-content large">
       <div class="modal-header">
         <h3>Admin Panel</h3>
@@ -814,10 +815,13 @@ function openAdminPanel() {
     </div>
   `;
   
-  document.body.appendChild(modal);
+    document.body.appendChild(modal);
+  } catch (error) {
+    showNotification('Failed to load users: ' + error.message, 'error');
+  }
 }
 
-function createUser() {
+async function createUser() {
   const username = document.getElementById('newUsername').value.trim();
   const name = document.getElementById('newUserName').value.trim();
   const password = document.getElementById('newUserPassword').value.trim();
@@ -829,8 +833,8 @@ function createUser() {
   }
   
   try {
-    auth.createUser(username, password, name, role);
-    showNotification('User created successfully', 'success');
+    await auth.createUser(username, password, name, role);
+    showNotification('User created successfully and synced globally', 'success');
     
     // Clear the form
     document.getElementById('newUsername').value = '';
@@ -846,10 +850,10 @@ function createUser() {
   }
 }
 
-function deleteUser(username) {
+async function deleteUser(username) {
   if (confirm(`Delete user "${username}"?`)) {
     try {
-      auth.deleteUser(username);
+      await auth.deleteUser(username);
       showNotification('User deleted successfully', 'success');
       document.querySelector('.modal')?.remove();
       openAdminPanel();
