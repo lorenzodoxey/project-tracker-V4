@@ -461,25 +461,63 @@ function loadUsersList() {
   const users = userManager.getUserList();
   
   usersList.innerHTML = `
-    <div class="users-header">
-      <h3>Users (${users.length})</h3>
-      <button class="btn primary small" onclick="showCreateUserForm()">+ Add User</button>
+    <div class="admin-section-header">
+      <div>
+        <h3 style="margin: 0; color: var(--primary); font-size: 20px; font-weight: 700;">User Management</h3>
+        <p style="margin: 4px 0 0; color: var(--muted); font-size: 14px;">Manage user accounts and permissions</p>
+      </div>
+      <button class="btn primary" onclick="showCreateUserForm()">
+        <span style="margin-right: 8px;">👥</span>Add User
+      </button>
     </div>
+    
+    <div class="users-stats" style="background: rgba(0, 212, 255, 0.05); border: 1px solid rgba(0, 212, 255, 0.2); border-radius: 12px; padding: 16px; margin-bottom: 24px;">
+      <div style="display: flex; gap: 24px; align-items: center;">
+        <div style="text-align: center;">
+          <div style="font-size: 24px; font-weight: 700; color: var(--primary);">${users.length}</div>
+          <div style="font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px;">Total Users</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 24px; font-weight: 700; color: var(--purple);">${users.filter(u => u.role === 'admin').length}</div>
+          <div style="font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px;">Admins</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="font-size: 24px; font-weight: 700; color: var(--accent);">${users.filter(u => u.role === 'editor').length}</div>
+          <div style="font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px;">Editors</div>
+        </div>
+      </div>
+    </div>
+    
     <div class="users-list">
       ${users.map(user => `
         <div class="user-item">
           <div class="user-info">
-            <span class="username">${escapeHtml(user.username)}</span>
-            <span class="role ${user.role}">${user.role}</span>
-            <span class="last-login">${user.lastLogin ? 
-              'Last: ' + new Date(user.lastLogin).toLocaleDateString() : 
-              'Never logged in'}</span>
+            <div class="user-header">
+              <span class="user-name">${escapeHtml(user.username)}</span>
+              <span class="user-role ${user.role}">${user.role}</span>
+              ${user.role === 'admin' ? '<span style="margin-left: 8px;">👑</span>' : ''}
+            </div>
+            <div class="user-details">
+              <span class="username">@${user.username}</span>
+              <span class="last-login" style="color: ${user.lastLogin ? 'var(--primary)' : 'var(--muted)'};">
+                ${user.lastLogin ? 
+                  '🟢 Last: ' + new Date(user.lastLogin).toLocaleDateString() : 
+                  '⚪ Never logged in'}
+              </span>
+              ${user.role === 'editor' && user.channels && user.channels.length > 0 ? 
+                `<div class="user-channels">🏷️ Channels: ${user.channels.join(', ')}</div>` : 
+                user.role === 'editor' ? '<div class="user-channels" style="color: var(--muted);">📝 No channels assigned</div>' : ''}
+            </div>
           </div>
           <div class="user-actions">
-            <button class="btn secondary tiny" onclick="editUser('${user.username}')">Edit</button>
+            <button class="btn-small secondary" onclick="editUser('${user.username}')">
+              <span style="margin-right: 4px;">✏️</span>Edit
+            </button>
             ${user.username !== 'admin' ? 
-              `<button class="btn danger tiny" onclick="deleteUser('${user.username}')">Delete</button>` : 
-              ''}
+              `<button class="btn-small danger" onclick="deleteUser('${user.username}')">
+                <span style="margin-right: 4px;">🗑️</span>Delete
+              </button>` : 
+              '<button class="btn-small" style="opacity: 0.5; cursor: not-allowed;" disabled>🔒 Protected</button>'}
           </div>
         </div>
       `).join('')}
@@ -523,37 +561,99 @@ function editUser(username) {
 function createUserFormModal() {
   const modalHTML = `
     <div id="userFormModal" class="modal hidden">
-      <div class="modal-content">
+      <div class="modal-content" style="max-width: 500px;">
         <div class="modal-header">
-          <h3 id="userFormTitle">Create User</h3>
+          <div>
+            <h3 id="userFormTitle" style="margin: 0; color: var(--primary);">Create User</h3>
+            <p style="margin: 4px 0 0; color: var(--muted); font-size: 14px;">Add a new user to the system</p>
+          </div>
           <button class="close-btn" onclick="closeUserForm()">&times;</button>
         </div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label>Username:</label>
-            <input type="text" id="userFormUsername" placeholder="Enter username">
+        <div class="modal-body" style="padding: 24px;">
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">
+              <span style="margin-right: 8px;">👤</span>Username:
+            </label>
+            <input type="text" id="userFormUsername" placeholder="Enter username" 
+                   style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: rgba(0, 0, 0, 0.3); color: var(--text); font-size: 14px;">
           </div>
-          <div class="form-group">
-            <label>Password:</label>
-            <input type="password" id="userFormPassword" placeholder="Enter password">
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">
+              <span style="margin-right: 8px;">🔑</span>Password:
+            </label>
+            <input type="password" id="userFormPassword" placeholder="Enter password" 
+                   style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: rgba(0, 0, 0, 0.3); color: var(--text); font-size: 14px;">
           </div>
-          <div class="form-group">
-            <label>Role:</label>
-            <select id="userFormRole">
-              <option value="user">User</option>
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">
+              <span style="margin-right: 8px;">🛡️</span>Role:
+            </label>
+            <select id="userFormRole" onchange="toggleChannelAssignment()" 
+                    style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: rgba(0, 0, 0, 0.3); color: var(--text); font-size: 14px;">
+              <option value="editor">Editor</option>
               <option value="admin">Admin</option>
             </select>
           </div>
+          <div id="channelAssignment" class="form-group" style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; color: var(--text); font-weight: 500;">
+              <span style="margin-right: 8px;">🏷️</span>Assign Channels:
+            </label>
+            <div id="channelCheckboxes" style="max-height: 120px; overflow-y: auto; padding: 8px; border: 1px solid var(--border); border-radius: 8px; background: rgba(0, 0, 0, 0.2);">
+              <!-- Channel checkboxes will be populated here -->
+            </div>
+            <p style="margin: 8px 0 0; color: var(--muted); font-size: 12px;">Select which channels this editor can access</p>
+          </div>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer" style="padding: 16px 24px; border-top: 1px solid var(--border); display: flex; gap: 12px; justify-content: flex-end;">
           <button class="btn secondary" onclick="closeUserForm()">Cancel</button>
-          <button class="btn primary" onclick="saveUserForm()">Save</button>
+          <button class="btn primary" onclick="saveUserForm()">
+            <span style="margin-right: 8px;">💾</span>Save User
+          </button>
         </div>
       </div>
     </div>
   `;
   
   document.body.insertAdjacentHTML('beforeend', modalHTML);
+  
+  // Populate channel checkboxes after modal is created
+  setTimeout(() => {
+    populateChannelCheckboxes();
+    toggleChannelAssignment(); // Hide channels for admin by default
+  }, 100);
+}
+
+// Channel assignment functions
+function populateChannelCheckboxes() {
+  const channelContainer = document.getElementById('channelCheckboxes');
+  if (!channelContainer) return;
+  
+  // Get available channels from the kanban board
+  const channels = ['Todo', 'In Progress', 'In Review', 'Testing', 'Done'];
+  
+  channelContainer.innerHTML = channels.map(channel => `
+    <label style="display: flex; align-items: center; padding: 8px; margin-bottom: 4px; cursor: pointer; border-radius: 4px; transition: background 0.2s;" 
+           onmouseover="this.style.background='rgba(0, 212, 255, 0.1)'" 
+           onmouseout="this.style.background='transparent'">
+      <input type="checkbox" name="userChannels" value="${channel}" 
+             style="margin-right: 8px; accent-color: var(--primary);">
+      <span style="color: var(--text);">${channel}</span>
+    </label>
+  `).join('');
+}
+
+function toggleChannelAssignment() {
+  const role = document.getElementById('userFormRole').value;
+  const channelAssignment = document.getElementById('channelAssignment');
+  
+  if (channelAssignment) {
+    channelAssignment.style.display = role === 'editor' ? 'block' : 'none';
+  }
+}
+
+function getSelectedChannels() {
+  const checkboxes = document.querySelectorAll('input[name="userChannels"]:checked');
+  return Array.from(checkboxes).map(cb => cb.value);
 }
 
 function closeUserForm() {
@@ -565,6 +665,7 @@ async function saveUserForm() {
   const username = document.getElementById('userFormUsername').value.trim();
   const password = document.getElementById('userFormPassword').value.trim();
   const role = document.getElementById('userFormRole').value;
+  const channels = role === 'editor' ? getSelectedChannels() : [];
   
   if (!username) {
     showNotification('Username is required', 'error');
@@ -579,7 +680,7 @@ async function saveUserForm() {
   try {
     if (adminState.editingUser) {
       // Update existing user
-      const updates = { role };
+      const updates = { role, channels };
       if (password) {
         const hashedData = await hashPassword(password);
         updates.password = hashedData.hash;
@@ -588,8 +689,8 @@ async function saveUserForm() {
       userManager.updateUser(username, updates);
       showNotification('User updated successfully', 'success');
     } else {
-      // Create new user
-      await userManager.createUser(username, password, role);
+      // Create new user with channel assignment
+      await userManager.createUser(username, password, role, channels);
       showNotification('User created successfully', 'success');
     }
     

@@ -572,13 +572,13 @@ class UserManager {
     }
   }
   
-  async createUser(username, password, role = 'user') {
+  async createUser(username, password, role = 'editor', channels = []) {
     if (!this.currentSession || this.currentSession.role !== 'admin') {
       throw new Error('Admin privileges required');
     }
     
     const result = await SECURITY_CONFIG.admin.createUser(this.currentSession, {
-      username, password, name: username, role
+      username, password, name: username, role, channels
     });
     
     if (!result.success) {
