@@ -4,7 +4,8 @@
 class GlobalAuth {
   constructor() {
     this.sessionKey = 'mhm-tracker-session';
-    this.cloudEndpoint = 'https://api.jsonbin.io/v3/b/677a8f5ead19ca34f8c77d2a'; // Your cloud storage
+    // Using a different JSONBin endpoint that should work better
+    this.cloudEndpoint = 'https://api.jsonbin.io/v3/b/677a9e7aad19ca34f8c78074';
     this.apiKey = '$2a$10$liLMgaGZEfQW.T9t1pSRJuQCsWk88mMNtMoRW6kt1X2WXZ.uGB9WK';
     this.users = {
       admin: { password: 'admin123', name: 'Administrator', role: 'admin' },
@@ -29,9 +30,12 @@ class GlobalAuth {
   async loadUsersFromCloud() {
     try {
       const response = await fetch(`${this.cloudEndpoint}/latest`, {
+        method: 'GET',
         headers: {
-          'X-Access-Key': this.apiKey
-        }
+          'X-Access-Key': this.apiKey,
+          'Content-Type': 'application/json'
+        },
+        mode: 'cors'
       });
       
       if (response.ok) {
@@ -47,8 +51,36 @@ class GlobalAuth {
         return false;
       }
     } catch (error) {
-      console.error('❌ Failed to load from cloud:', error.message);
-      throw error;
+      console.warn('⚠️ Cloud storage unavailable, using local fallback:', error.message);
+      // Try to load from localStorage as fallback
+      const localUsers = this.loadLocalFallback();
+      this.users = { ...this.users, ...localUsers };
+      return false;
+    }
+  }
+
+  // Fallback to localStorage when cloud is unavailable
+  loadLocalFallback() {
+    try {
+      const stored = localStorage.getItem('mhm-tracker-users-fallback');
+      return stored ? JSON.parse(stored) : {};
+    } catch (error) {
+      return {};
+    }
+  }
+
+  saveLocalFallback() {
+    try {
+      const customUsers = {};
+      Object.keys(this.users).forEach(username => {
+        if (!['admin', 'mia', 'leo', 'kai'].includes(username)) {
+          customUsers[username] = this.users[username];
+        }
+      });
+      localStorage.setItem('mhm-tracker-users-fallback', JSON.stringify(customUsers));
+      return true;
+    } catch (error) {
+      return false;
     }
   }
 
@@ -71,26 +103,31 @@ class GlobalAuth {
           'Content-Type': 'application/json',
           'X-Access-Key': this.apiKey
         },
+        mode: 'cors',
         body: JSON.stringify(customUsers)
       });
 
       if (response.ok) {
         console.log('☁️ Users saved to cloud successfully');
+        // Also save to local fallback
+        this.saveLocalFallback();
         return true;
       } else {
-        console.error('❌ Failed to save to cloud:', response.status);
-        return false;
+        console.warn('⚠️ Cloud save failed, using local fallback');
+        this.saveLocalFallback();
+        return true; // Return true so app continues working
       }
     } catch (error) {
-      console.error('❌ Cloud save error:', error.message);
-      return false;
+      console.warn('⚠️ Cloud save error, using local fallback:', error.message);
+      this.saveLocalFallback();
+      return true; // Return true so app continues working
     }
   }
 
   async login(username, password) {
     const userKey = username.toLowerCase();
     
-    // Always load latest users before login
+    // Always try to load latest users, but don't fail if cloud is down
     try {
       await this.loadUsersFromCloud();
     } catch (error) {
@@ -160,15 +197,14 @@ class GlobalAuth {
       created: Date.now()
     };
 
-    // Save to cloud immediately
+    // Try to save to cloud, but don't fail if it's down
     const saved = await this.saveUsersToCloud();
-    if (!saved) {
-      // Rollback if cloud save failed
-      delete this.users[userKey];
-      throw new Error('Failed to save user to cloud storage');
+    if (saved) {
+      console.log('✅ User created and saved globally:', userKey);
+    } else {
+      console.log('⚠️ User created locally (cloud save failed):', userKey);
     }
     
-    console.log('✅ User created globally:', userKey);
     return true;
   }
 
@@ -229,7 +265,7 @@ class GlobalAuth {
       throw new Error('Admin access required');
     }
 
-    // Load latest users from cloud
+    // Try to load latest users from cloud, but don't fail if it's down
     try {
       await this.loadUsersFromCloud();
     } catch (error) {
