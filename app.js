@@ -777,9 +777,12 @@ async function openAdminPanel() {
   
   try {
     const users = await auth.getAllUsers();
-    
+    // Ensure we don't duplicate the admin panel modal
+    document.getElementById('adminPanelDynamic')?.remove();
+
     const modal = document.createElement('div');
     modal.className = 'modal';
+    modal.id = 'adminPanelDynamic';
     modal.innerHTML = `
     <div class="modal-content large">
       <div class="modal-header">
@@ -846,7 +849,7 @@ async function createUser() {
     document.getElementById('newUserRole').value = 'editor';
     
     // Refresh the admin panel to show the new user
-    document.querySelector('.modal')?.remove();
+    document.getElementById('adminPanelDynamic')?.remove();
     openAdminPanel();
   } catch (error) {
     showNotification(error.message, 'error');
@@ -858,7 +861,7 @@ async function deleteUser(username) {
     try {
       await auth.deleteUser(username);
       showNotification('User deleted successfully', 'success');
-      document.querySelector('.modal')?.remove();
+      document.getElementById('adminPanelDynamic')?.remove();
       openAdminPanel();
     } catch (error) {
       showNotification(error.message, 'error');
