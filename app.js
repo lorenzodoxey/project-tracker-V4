@@ -10,6 +10,7 @@ const CONFIG = {
     { id: 'final', name: 'Final', color: '#7c3aed' },
     { id: 'posted', name: 'Posted', color: '#10b981' }
   ],
+  priorities: ['LOW', 'MEDIUM', 'HIGH'],
   defaultPlatforms: ['Instagram', 'TikTok', 'YouTube', 'Facebook', 'LinkedIn'],
   defaultEditors: ['Mia', 'Leo', 'Kai'],
   defaultChannels: ['Main Brand', 'Clips Channel', 'Client Channel'],
@@ -55,7 +56,7 @@ const utils = {
     }
   },
   
-  saveToStorage: () => {
+  saveToStorage: async () => {
     try {
       const dataToSave = {
         projects: appState.projects,
@@ -67,7 +68,18 @@ const utils = {
         version: '3.0'
       };
       
+      // Save to localStorage first (immediate)
       localStorage.setItem(CONFIG.storageKey, JSON.stringify(dataToSave));
+      
+      // Save to cloud if available
+      if (window.auth && appState.isLoggedIn) {
+        try {
+          await window.auth.saveProjectsToCloud(dataToSave);
+        } catch (error) {
+          console.warn('Cloud save failed:', error.message);
+        }
+      }
+      
       return true;
     } catch (error) {
       showNotification('Failed to save data', 'error');
@@ -75,8 +87,27 @@ const utils = {
     }
   },
 
-  loadFromStorage: () => {
+  loadFromStorage: async () => {
     try {
+      // Try to load from cloud first if logged in
+      if (window.auth && appState.isLoggedIn) {
+        try {
+          const cloudData = await window.auth.loadProjectsFromCloud();
+          if (cloudData) {
+            appState.projects = Array.isArray(cloudData.projects) ? cloudData.projects : [];
+            appState.trash = Array.isArray(cloudData.trash) ? cloudData.trash : [];
+            appState.editors = Array.isArray(cloudData.editors) ? cloudData.editors : [...CONFIG.defaultEditors];
+            appState.platforms = Array.isArray(cloudData.platforms) ? cloudData.platforms : [...CONFIG.defaultPlatforms];
+            appState.channels = Array.isArray(cloudData.channels) ? cloudData.channels : [...CONFIG.defaultChannels];
+            console.log('✅ Loaded data from cloud');
+            return true;
+          }
+        } catch (error) {
+          console.warn('Cloud load failed, using local data:', error.message);
+        }
+      }
+
+      // Fallback to localStorage
       const data = JSON.parse(localStorage.getItem(CONFIG.storageKey));
       if (data) {
         appState.projects = Array.isArray(data.projects) ? data.projects : [];
@@ -94,10 +125,12 @@ const utils = {
           if (!project.checklist) project.checklist = [];
         });
         
+        console.log('📁 Loaded data from localStorage');
         return true;
       }
       return false;
     } catch (error) {
+      console.warn('Failed to load data:', error.message);
       return false;
     }
   },
@@ -145,7 +178,7 @@ async function checkPassword() {
     errorEl.classList.add('hidden');
     
     updateUserDisplay();
-    initializeApp();
+    await initializeApp();
     
     showNotification(`Welcome, ${session.name}!`, 'success');
     
@@ -173,8 +206,12 @@ function updateUserDisplay() {
   }
   
   const adminPanelBtn = document.getElementById('adminPanelBtn');
+  const manageBtn = document.getElementById('manageBtn');
   if (adminPanelBtn) {
     adminPanelBtn.style.display = appState.currentUser.role === 'admin' ? 'inline-block' : 'none';
+  }
+  if (manageBtn) {
+    manageBtn.style.display = appState.currentUser.role === 'admin' ? 'inline-block' : 'none';
   }
   
   document.title = `MHM Project Tracker - ${appState.currentUser.name}`;
@@ -182,7 +219,7 @@ function updateUserDisplay() {
 
 function logout() {
   if (confirm('Are you sure you want to logout?')) {
-    utils.saveToStorage();
+    utils.saveToStorage(); // Fire and forget - don't block logout
     auth.logout();
     
     appState.currentUser = null;
@@ -224,13 +261,21 @@ function closeModal() {
   appState.editingProject = null;
 }
 
-function saveProject(event) {
+async function saveProject(event) {
   event.preventDefault();
   
   const title = document.getElementById('projectTitle').value.trim();
   if (!title) {
     showNotification('Project title is required', 'error');
     return;
+  }
+  const selectedChannel = document.getElementById('projectChannel').value;
+  if (appState.currentUser && appState.currentUser.role !== 'admin') {
+    const allowed = getAllowedChannelsForUser(appState.currentUser);
+    if (selectedChannel && !allowed.includes(selectedChannel)) {
+      showNotification('You do not have permission to use this channel.', 'error');
+      return;
+    }
   }
   
   const project = {
@@ -239,7 +284,7 @@ function saveProject(event) {
     client: document.getElementById('projectClient').value.trim(),
     editor: document.getElementById('projectEditor').value,
     platform: document.getElementById('projectPlatform').value,
-    channel: document.getElementById('projectChannel').value,
+  channel: selectedChannel,
     priority: document.getElementById('projectPriority').value,
     stage: document.getElementById('projectStage').value || 'uploaded',
     dueDate: document.getElementById('projectDue').value,
@@ -260,7 +305,7 @@ function saveProject(event) {
     appState.projects.push(project);
   }
   
-  utils.saveToStorage();
+  await utils.saveToStorage();
   renderBoard();
   updateStats();
   updateAllDropdowns();
@@ -293,7 +338,7 @@ function deleteProject(projectId) {
   }
 }
 
-function moveProject(projectId, newStage) {
+async function moveProject(projectId, newStage) {
   const project = appState.projects.find(p => p.id === projectId);
   if (!project) return;
   
@@ -303,11 +348,42 @@ function moveProject(projectId, newStage) {
   if (!project.timeline) project.timeline = {};
   project.timeline[newStage] = Date.now();
   
-  utils.saveToStorage();
+  await utils.saveToStorage();
   renderBoard();
   updateStats();
   
   showNotification(`Project moved to ${CONFIG.stages.find(s => s.id === newStage)?.name}`, 'success');
+}
+
+async function changeProjectStage(projectId, newStage) {
+  const project = appState.projects.find(p => p.id === projectId);
+  if (!project) return;
+  
+  project.stage = newStage;
+  project.lastModified = Date.now();
+  
+  if (!project.timeline) project.timeline = {};
+  project.timeline[newStage] = Date.now();
+  
+  await utils.saveToStorage();
+  renderBoard();
+  updateStats();
+  
+  showNotification(`Stage changed to ${CONFIG.stages.find(s => s.id === newStage)?.name}`, 'success');
+}
+
+async function changeProjectColor(projectId, newColor) {
+  const project = appState.projects.find(p => p.id === projectId);
+  if (!project) return;
+  
+  project.color = newColor;
+  project.lastModified = Date.now();
+  
+  await utils.saveToStorage();
+  renderBoard();
+  
+  const colorName = CONFIG.cardColors.find(c => c.value === newColor)?.name || newColor;
+  showNotification(`Card color changed to ${colorName}`, 'success');
 }
 
 // UI rendering functions
@@ -321,9 +397,9 @@ function renderBoard() {
     <div class="column" data-stage="${stage.id}">
       <div class="column-header" style="border-top: 4px solid ${stage.color}">
         <h3>${stage.name}</h3>
-        <span class="count">${filteredProjects.filter(p => p.stage === stage.id).length}</span>
+        <span class="column-count">${filteredProjects.filter(p => p.stage === stage.id).length}</span>
       </div>
-      <div class="column-content" ondrop="drop(event)" ondragover="allowDrop(event)">
+      <div class="drop-zone" data-stage="${stage.id}" ondrop="drop(event)" ondragover="allowDrop(event)" ondragleave="dragLeave(event)">
         ${filteredProjects
           .filter(p => p.stage === stage.id)
           .map(project => renderProjectCard(project))
@@ -337,22 +413,44 @@ function renderProjectCard(project) {
   const daysUntilDue = project.dueDate ? utils.daysBetween(new Date(), project.dueDate) : null;
   const overdue = daysUntilDue !== null && daysUntilDue < 0;
   
+  const stageOptions = CONFIG.stages.map(s => 
+    `<option value="${s.id}" ${project.stage === s.id ? 'selected' : ''}>${s.name}</option>`
+  ).join('');
+  
+  const colorOptions = CONFIG.cardColors.map(c => 
+    `<option value="${c.value}" ${project.color === c.value ? 'selected' : ''}>${c.name}</option>`
+  ).join('');
+  
   return `
-    <div class="card ${project.color || 'teal'} ${project.priority?.toLowerCase()}" 
+    <div class="project-card ${project.color || 'teal'} ${project.priority?.toLowerCase()}" 
          draggable="true" 
          ondragstart="drag(event)" 
          data-id="${project.id}">
       <div class="card-header">
         <h4>${escapeHtml(project.title)}</h4>
         <div class="card-actions">
-          <button onclick="editProject('${project.id}')" class="btn-icon" title="Edit">✏️</button>
-          <button onclick="deleteProject('${project.id}')" class="btn-icon" title="Delete">🗑️</button>
+          <button onclick="editProject('${project.id}')" class="icon-btn" title="Edit">✏️</button>
+          <button onclick="deleteProject('${project.id}')" class="icon-btn" title="Delete">🗑️</button>
         </div>
       </div>
       ${project.client ? `<div class="card-meta">Client: ${escapeHtml(project.client)}</div>` : ''}
       <div class="card-meta">
         ${project.editor ? `Editor: ${escapeHtml(project.editor)} • ` : ''}
         ${project.platform ? `${escapeHtml(project.platform)}` : ''}
+      </div>
+      <div class="card-controls">
+        <div class="card-control-group">
+          <label>Stage:</label>
+          <select onchange="changeProjectStage('${project.id}', this.value)" class="card-select">
+            ${stageOptions}
+          </select>
+        </div>
+        <div class="card-control-group">
+          <label>Color:</label>
+          <select onchange="changeProjectColor('${project.id}', this.value)" class="card-select">
+            ${colorOptions}
+          </select>
+        </div>
       </div>
       ${project.dueDate ? `<div class="card-due ${overdue ? 'overdue' : ''}">${overdue ? 'Overdue by' : 'Due in'} ${Math.abs(daysUntilDue)} days</div>` : ''}
       ${project.notes ? `<div class="card-notes">${escapeHtml(project.notes.substring(0, 100))}${project.notes.length > 100 ? '...' : ''}</div>` : ''}
@@ -362,6 +460,16 @@ function renderProjectCard(project) {
 
 function getFilteredProjects() {
   let filtered = appState.projects;
+  
+  // Filter by user role and assigned projects
+  if (appState.currentUser && appState.currentUser.role !== 'admin') {
+    const allowedChannels = getAllowedChannelsForUser(appState.currentUser);
+    // Non-admins: see projects assigned to them (if editor set) and limited to allowed channels
+    filtered = filtered.filter(p =>
+      (!p.editor || p.editor === appState.currentUser.name) &&
+      (!p.channel || allowedChannels.includes(p.channel))
+    );
+  }
   
   const searchTerm = document.getElementById('searchInput')?.value.toLowerCase() || '';
   const editorFilter = document.getElementById('editorFilter')?.value || '';
@@ -389,6 +497,13 @@ function getFilteredProjects() {
   }
   
   return filtered;
+}
+
+function getAllowedChannelsForUser(user) {
+  if (!user) return appState.channels;
+  if (user.role === 'admin') return appState.channels;
+  const list = Array.isArray(user.channels) ? user.channels : (Array.isArray(user.assignedChannels) ? user.assignedChannels : []);
+  return list.length ? list.filter(c => appState.channels.includes(c)) : [];
 }
 
 function updateStats() {
@@ -420,7 +535,6 @@ function updateTrashCount() {
 // Form functions
 function clearForm() {
   document.getElementById('projectForm').reset();
-  document.getElementById('projectStage').value = '';
   document.getElementById('projectColor').value = 'teal';
 }
 
@@ -441,42 +555,33 @@ function populateForm(project) {
 function updateAllDropdowns() {
   updateDropdown('projectEditor', appState.editors);
   updateDropdown('projectPlatform', appState.platforms);
-  updateDropdown('projectChannel', appState.channels);
-  updateDropdown('editorFilter', appState.editors);
-  updateDropdown('platformFilter', appState.platforms);
-  updateDropdown('channelFilter', appState.channels);
-
-  // Populate Stage dropdown
+  const user = appState.currentUser;
+  const allowedChannels = getAllowedChannelsForUser(user);
+  const channelsForForm = (user && user.role !== 'admin') ? allowedChannels : appState.channels;
+  updateDropdown('projectChannel', channelsForForm);
+  // Stages: show names but keep values as ids
   const stageSelect = document.getElementById('projectStage');
   if (stageSelect) {
-    const currentValue = stageSelect.value;
-    stageSelect.innerHTML = '<option value="">Select...</option>';
-    CONFIG.stages.forEach(stage => {
-      const option = document.createElement('option');
-      option.value = stage.id;
-      option.textContent = stage.name;
-      stageSelect.appendChild(option);
-    });
-    if (currentValue && CONFIG.stages.find(s => s.id === currentValue)) {
-      stageSelect.value = currentValue;
-    }
+    const current = stageSelect.value;
+    stageSelect.innerHTML = CONFIG.stages
+      .map(s => `<option value="${s.id}">${s.name}</option>`)
+      .join('');
+    stageSelect.value = current || 'uploaded';
   }
-
-  // Populate Card Color dropdown
+  updateDropdown('projectPriority', CONFIG.priorities);
+  // Colors: show names with proper value
   const colorSelect = document.getElementById('projectColor');
   if (colorSelect) {
-    const currentValue = colorSelect.value;
-    colorSelect.innerHTML = '<option value="">Select...</option>';
-    CONFIG.cardColors.forEach(color => {
-      const option = document.createElement('option');
-      option.value = color.value;
-      option.textContent = color.name;
-      colorSelect.appendChild(option);
-    });
-    if (currentValue && CONFIG.cardColors.find(c => c.value === currentValue)) {
-      colorSelect.value = currentValue;
-    }
+    const current = colorSelect.value;
+    colorSelect.innerHTML = CONFIG.cardColors
+      .map(c => `<option value="${c.value}">${c.name}</option>`)
+      .join('');
+    colorSelect.value = current || 'teal';
   }
+  updateDropdown('editorFilter', appState.editors);
+  updateDropdown('platformFilter', appState.platforms);
+  const channelsForFilter = (user && user.role !== 'admin') ? allowedChannels : appState.channels;
+  updateDropdown('channelFilter', channelsForFilter);
 }
 
 function updateDropdown(elementId, options) {
@@ -503,6 +608,8 @@ function updateDropdown(elementId, options) {
 // Drag and drop functions
 function allowDrop(ev) {
   ev.preventDefault();
+  const zone = ev.currentTarget?.classList ? ev.currentTarget : ev.target.closest('.drop-zone');
+  if (zone && zone.classList) zone.classList.add('drag-over');
 }
 
 function drag(ev) {
@@ -517,6 +624,13 @@ function drop(ev) {
     const newStage = column.dataset.stage;
     moveProject(projectId, newStage);
   }
+  const zone = ev.currentTarget?.classList ? ev.currentTarget : ev.target.closest('.drop-zone');
+  if (zone && zone.classList) zone.classList.remove('drag-over');
+}
+
+function dragLeave(ev) {
+  const zone = ev.currentTarget?.classList ? ev.currentTarget : ev.target.closest('.drop-zone');
+  if (zone && zone.classList) zone.classList.remove('drag-over');
 }
 
 // Utility functions
@@ -831,11 +945,14 @@ async function openAdminPanel() {
               <div class="user-row">
                 <div class="user-info">
                   <div class="user-name">${escapeHtml(user.name)}</div>
-                  <div class="user-details">@${user.username} • ${user.role}</div>
+                    <div class="user-details">@${user.username} • ${user.role}${(user.channels && user.channels.length) ? ` • ${user.channels.map(escapeHtml).join(', ')}` : ''}</div>
                 </div>
-                ${user.username !== 'admin' ? 
-                  `<button onclick="deleteUser('${user.username}')" class="btn-delete">Delete</button>` : ''
-                }
+                  <div class="user-actions">
+                    ${user.username !== 'admin' ? 
+                      `<button onclick="editUser('${user.username}')" class="btn secondary">Edit</button>
+                       <button onclick="deleteUser('${user.username}')" class="btn-delete">Delete</button>` : ''
+                    }
+                  </div>
               </div>
             `).join('')}
           </div>
@@ -871,6 +988,36 @@ async function openAdminPanel() {
             <button class="btn primary create-user-btn" onclick="createUser()">Create User</button>
           </div>
         </div>
+
+        <div class="admin-section">
+          <h4><span class="section-icon">🗂️</span> Manage Lists</h4>
+          <div class="manage-grid">
+            <div class="manage-section">
+              <h4>Editors</h4>
+              <div class="manage-list" id="editorsList"></div>
+              <div class="add-item">
+                <input type="text" id="newEditor" placeholder="Add editor">
+                <button onclick="addEditor()">Add</button>
+              </div>
+            </div>
+            <div class="manage-section">
+              <h4>Platforms</h4>
+              <div class="manage-list" id="platformsList"></div>
+              <div class="add-item">
+                <input type="text" id="newPlatform" placeholder="Add platform">
+                <button onclick="addPlatform()">Add</button>
+              </div>
+            </div>
+            <div class="manage-section">
+              <h4>Channels</h4>
+              <div class="manage-list" id="channelsList"></div>
+              <div class="add-item">
+                <input type="text" id="newChannel" placeholder="Add channel">
+                <button onclick="addChannel()">Add</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   `;
@@ -904,8 +1051,80 @@ window.renderChannelAssignment = function() {
   
   document.body.appendChild(modal);
   renderChannelAssignment();
+  renderManageLists();
   } catch (error) {
     showNotification('Failed to load users: ' + error.message, 'error');
+  }
+}
+
+async function editUser(username) {
+  try {
+    const users = await auth.getAllUsers();
+    const user = users.find(u => u.username === username);
+    if (!user) return;
+    document.getElementById('editUserModal')?.remove();
+    const modal = document.createElement('div');
+    modal.className = 'modal';
+    modal.id = 'editUserModal';
+    const allChannels = appState.channels;
+    modal.innerHTML = `
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Edit User</h3>
+          <button onclick="this.closest('.modal').remove()" class="modal-close-btn">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Name</label>
+              <input type="text" id="editUserName" value="${escapeHtml(user.name)}">
+            </div>
+            <div class="form-group">
+              <label>Role</label>
+              <select id="editUserRole">
+                <option value="editor" ${user.role==='editor'?'selected':''}>Editor</option>
+                <option value="admin" ${user.role==='admin'?'selected':''}>Admin</option>
+              </select>
+            </div>
+          </div>
+          <div class="channel-assignment" id="editChannelAssignment" style="${user.role==='admin'?'display:none;':''}">
+            <label>Assign Channels</label>
+            <div class="channel-checkboxes">
+              ${allChannels.map(ch => `
+                <label class="channel-checkbox">
+                  <input type="checkbox" class="edit-channel-checkbox" value="${escapeHtml(ch)}" ${user.channels && user.channels.includes(ch) ? 'checked' : ''}>
+                  <span>${escapeHtml(ch)}</span>
+                </label>
+              `).join('')}
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn secondary" onclick="document.getElementById('editUserModal')?.remove()">Cancel</button>
+            <button class="btn primary" id="saveEditUserBtn">Save</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#editUserRole').addEventListener('change', (e) => {
+      modal.querySelector('#editChannelAssignment').style.display = e.target.value === 'admin' ? 'none' : '';
+    });
+    modal.querySelector('#saveEditUserBtn').onclick = async () => {
+      const name = modal.querySelector('#editUserName').value.trim();
+      const role = modal.querySelector('#editUserRole').value;
+      let assignedChannels = [];
+      if (role !== 'admin') {
+        assignedChannels = Array.from(modal.querySelectorAll('.edit-channel-checkbox:checked')).map(cb => cb.value);
+      } else {
+        assignedChannels = appState.channels.slice();
+      }
+      await auth.updateUser(username, { name, role, assignedChannels });
+      showNotification('User updated', 'success');
+      document.getElementById('editUserModal')?.remove();
+      document.getElementById('adminPanelDynamic')?.remove();
+      openAdminPanel();
+    };
+  } catch (e) {
+    showNotification('Failed to edit user: ' + e.message, 'error');
   }
 }
 
@@ -976,7 +1195,7 @@ async function deleteUser(username) {
 }
 
 // Event listeners
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   // Check for existing session
   const session = auth.getCurrentSession();
   if (session) {
@@ -987,7 +1206,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('mainApp').classList.remove('hidden');
     
     updateUserDisplay();
-    initializeApp();
+    await initializeApp();
   }
   
   // Add Enter key support for login
@@ -1012,8 +1231,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Initialize app after login
-function initializeApp() {
-  utils.loadFromStorage();
+async function initializeApp() {
+  await utils.loadFromStorage();
   renderBoard();
   updateStats();
   updateAllDropdowns();
@@ -1047,3 +1266,5 @@ window.addChannel = addChannel;
 window.removeChannel = removeChannel;
 window.createUser = createUser;
 window.deleteUser = deleteUser;
+window.changeProjectStage = changeProjectStage;
+window.changeProjectColor = changeProjectColor;

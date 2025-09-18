@@ -174,7 +174,7 @@ class GlobalAuth {
       }, ...localUsers };
     }
     
-    const user = this.users[userKey];
+  const user = this.users[userKey];
     
     console.log('🔑 Login attempt for:', userKey);
     console.log('📋 Available users:', Object.keys(this.users));
@@ -187,6 +187,7 @@ class GlobalAuth {
       username: userKey,
       name: user.name,
       role: user.role,
+      channels: Array.isArray(user.assignedChannels) ? user.assignedChannels : [],
       loginTime: Date.now(),
       expires: Date.now() + (24 * 60 * 60 * 1000) // 24 hours
     };
@@ -325,7 +326,8 @@ class GlobalAuth {
       name: this.users[username].name,
       role: this.users[username].role,
       created: this.users[username].created || null,
-      lastModified: this.users[username].lastModified || null
+      lastModified: this.users[username].lastModified || null,
+      channels: Array.isArray(this.users[username].assignedChannels) ? this.users[username].assignedChannels : []
     }));
   }
 
@@ -382,6 +384,87 @@ class GlobalAuth {
 
   getCloudStatus() {
     return { enabled: this.cloudEnabled, healthy: this.lastCloudOk };
+  }
+
+  // Project data cloud sync methods
+  async loadProjectsFromCloud() {
+    if (!this.cloudEnabled) { return null; }
+    const tryFetch = async (endpoint) => {
+      const ctrl = new AbortController();
+      const timeoutId = setTimeout(() => ctrl.abort(), endpoint.timeout);
+      
+      const url = endpoint.type === 'netlify' 
+        ? `${endpoint.url}/projects`
+        : `${endpoint.url.replace('1417956693685493760', '1417956693685493761')}`;
+      
+      try {
+        const response = await fetch(url, { 
+          signal: ctrl.signal,
+          headers: { 'Content-Type': 'application/json' }
+        });
+        clearTimeout(timeoutId);
+        
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data;
+      } catch (error) {
+        clearTimeout(timeoutId);
+        throw error;
+      }
+    };
+
+    for (const ep of this.cloudEndpoints) {
+      try {
+        const data = await tryFetch(ep);
+        if (data) {
+          console.log(`☁️ Loaded projects from cloud (${ep.type})`);
+          this.lastCloudOk = true;
+          return data;
+        }
+      } catch (error) {
+        console.warn(`⚠️ Cloud endpoint failed (${ep.type}):`, error.message);
+      }
+    }
+    
+    this.lastCloudOk = false;
+    return null;
+  }
+
+  async saveProjectsToCloud(projectData) {
+    if (!this.cloudEnabled) {
+      return false;
+    }
+
+    const dataToSave = {
+      ...projectData,
+      lastModified: Date.now(),
+      version: '3.0'
+    };
+
+    for (const ep of this.cloudEndpoints) {
+      try {
+        const url = ep.type === 'netlify' 
+          ? `${ep.url}/projects`
+          : `${ep.url.replace('1417956693685493760', '1417956693685493761')}`;
+
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(dataToSave)
+        });
+
+        if (response.ok) {
+          console.log(`☁️ Projects saved to cloud (${ep.type})`);
+          this.lastCloudOk = true;
+          return true;
+        }
+      } catch (error) {
+        console.warn(`⚠️ Failed to save projects to cloud (${ep.type}):`, error.message);
+      }
+    }
+
+    this.lastCloudOk = false;
+    return false;
   }
 }
 
