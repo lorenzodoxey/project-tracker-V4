@@ -241,7 +241,7 @@ function saveProject(event) {
     platform: document.getElementById('projectPlatform').value,
     channel: document.getElementById('projectChannel').value,
     priority: document.getElementById('projectPriority').value,
-    stage: appState.editingProject?.stage || 'uploaded',
+    stage: document.getElementById('projectStage').value || 'uploaded',
     dueDate: document.getElementById('projectDue').value,
     uploadDate: document.getElementById('projectUpload').value,
     color: document.getElementById('projectColor').value,
@@ -443,6 +443,38 @@ function updateAllDropdowns() {
   updateDropdown('editorFilter', appState.editors);
   updateDropdown('platformFilter', appState.platforms);
   updateDropdown('channelFilter', appState.channels);
+
+  // Populate Stage dropdown
+  const stageSelect = document.getElementById('projectStage');
+  if (stageSelect) {
+    const currentValue = stageSelect.value;
+    stageSelect.innerHTML = '<option value="">Select...</option>';
+    CONFIG.stages.forEach(stage => {
+      const option = document.createElement('option');
+      option.value = stage.id;
+      option.textContent = stage.name;
+      stageSelect.appendChild(option);
+    });
+    if (currentValue && CONFIG.stages.find(s => s.id === currentValue)) {
+      stageSelect.value = currentValue;
+    }
+  }
+
+  // Populate Card Color dropdown
+  const colorSelect = document.getElementById('projectColor');
+  if (colorSelect) {
+    const currentValue = colorSelect.value;
+    colorSelect.innerHTML = '<option value="">Select...</option>';
+    CONFIG.cardColors.forEach(color => {
+      const option = document.createElement('option');
+      option.value = color.value;
+      option.textContent = color.name;
+      colorSelect.appendChild(option);
+    });
+    if (currentValue && CONFIG.cardColors.find(c => c.value === currentValue)) {
+      colorSelect.value = currentValue;
+    }
+  }
 }
 
 function updateDropdown(elementId, options) {
