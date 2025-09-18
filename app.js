@@ -194,7 +194,6 @@ async function checkPassword() {
 
 function updateUserDisplay() {
   if (!appState.currentUser) return;
-  
   const userInfo = document.getElementById('userInfo');
   if (userInfo) {
     userInfo.innerHTML = `
@@ -204,16 +203,10 @@ function updateUserDisplay() {
       </div>
     `;
   }
-  
   const adminPanelBtn = document.getElementById('adminPanelBtn');
-  const manageBtn = document.getElementById('manageBtn');
   if (adminPanelBtn) {
     adminPanelBtn.style.display = appState.currentUser.role === 'admin' ? 'inline-block' : 'none';
   }
-  if (manageBtn) {
-    manageBtn.style.display = appState.currentUser.role === 'admin' ? 'inline-block' : 'none';
-  }
-  
   document.title = `MHM Project Tracker - ${appState.currentUser.name}`;
 }
 
@@ -410,50 +403,39 @@ function renderBoard() {
 }
 
 function renderProjectCard(project) {
+  // Progress bar calculation
+  const stageIndex = CONFIG.stages.findIndex(s => s.id === project.stage);
+  const progress = stageIndex >= 0 ? ((stageIndex + 1) / CONFIG.stages.length) : 0;
   const daysUntilDue = project.dueDate ? utils.daysBetween(new Date(), project.dueDate) : null;
   const overdue = daysUntilDue !== null && daysUntilDue < 0;
-  
-  const stageOptions = CONFIG.stages.map(s => 
-    `<option value="${s.id}" ${project.stage === s.id ? 'selected' : ''}>${s.name}</option>`
-  ).join('');
-  
-  const colorOptions = CONFIG.cardColors.map(c => 
-    `<option value="${c.value}" ${project.color === c.value ? 'selected' : ''}>${c.name}</option>`
-  ).join('');
-  
+  // Priority badge color
+  const priorityColor = {
+    HIGH: '#ff4d4f',
+    MEDIUM: '#faad14',
+    LOW: '#36cfc9'
+  }[project.priority] || '#888';
   return `
-    <div class="project-card ${project.color || 'teal'} ${project.priority?.toLowerCase()}" 
-         draggable="true" 
-         ondragstart="drag(event)" 
-         data-id="${project.id}">
+    <div class="project-card ${project.color || 'teal'} ${project.priority?.toLowerCase()}" draggable="true" ondragstart="drag(event)" data-id="${project.id}">
       <div class="card-header">
-        <h4>${escapeHtml(project.title)}</h4>
-        <div class="card-actions">
-          <button onclick="editProject('${project.id}')" class="icon-btn" title="Edit">✏️</button>
-          <button onclick="deleteProject('${project.id}')" class="icon-btn" title="Delete">🗑️</button>
+        <div class="card-title-row">
+          <h4 class="card-title">${escapeHtml(project.title)}</h4>
+          <div class="card-actions">
+            <button onclick="editProject('${project.id}')" class="icon-btn" title="Edit">✏️</button>
+            <button onclick="deleteProject('${project.id}')" class="icon-btn" title="Delete">🗑️</button>
+          </div>
         </div>
+        <div class="card-priority" style="background:${priorityColor}">${project.priority || ''}</div>
       </div>
-      ${project.client ? `<div class="card-meta">Client: ${escapeHtml(project.client)}</div>` : ''}
-      <div class="card-meta">
-        ${project.editor ? `Editor: ${escapeHtml(project.editor)} • ` : ''}
-        ${project.platform ? `${escapeHtml(project.platform)}` : ''}
+      <div class="card-info-row">
+        ${project.client ? `<span class="card-client">${escapeHtml(project.client)}</span>` : ''}
+        ${project.dueDate ? `<span class="card-due ${overdue ? 'overdue' : ''}">${overdue ? 'Overdue' : 'Due'}: ${utils.formatDate(project.dueDate)}</span>` : ''}
       </div>
-      <div class="card-controls">
-        <div class="card-control-group">
-          <label>Stage:</label>
-          <select onchange="changeProjectStage('${project.id}', this.value)" class="card-select">
-            ${stageOptions}
-          </select>
+      <div class="card-progress-bar">
+        <div class="progress-bg">
+          <div class="progress-fg" style="width:${Math.round(progress * 100)}%"></div>
         </div>
-        <div class="card-control-group">
-          <label>Color:</label>
-          <select onchange="changeProjectColor('${project.id}', this.value)" class="card-select">
-            ${colorOptions}
-          </select>
-        </div>
+        <span class="progress-label">${CONFIG.stages[stageIndex]?.name || ''}</span>
       </div>
-      ${project.dueDate ? `<div class="card-due ${overdue ? 'overdue' : ''}">${overdue ? 'Overdue by' : 'Due in'} ${Math.abs(daysUntilDue)} days</div>` : ''}
-      ${project.notes ? `<div class="card-notes">${escapeHtml(project.notes.substring(0, 100))}${project.notes.length > 100 ? '...' : ''}</div>` : ''}
     </div>
   `;
 }
