@@ -420,6 +420,7 @@ function updateTrashCount() {
 // Form functions
 function clearForm() {
   document.getElementById('projectForm').reset();
+  document.getElementById('projectStage').value = '';
   document.getElementById('projectColor').value = 'teal';
 }
 
@@ -430,6 +431,7 @@ function populateForm(project) {
   document.getElementById('projectPlatform').value = project.platform || '';
   document.getElementById('projectChannel').value = project.channel || '';
   document.getElementById('projectPriority').value = project.priority || 'MEDIUM';
+  document.getElementById('projectStage').value = project.stage || 'uploaded';
   document.getElementById('projectDue').value = project.dueDate || '';
   document.getElementById('projectUpload').value = project.uploadDate || '';
   document.getElementById('projectColor').value = project.color || 'teal';
