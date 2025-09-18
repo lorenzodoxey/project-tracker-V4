@@ -415,7 +415,7 @@ function renderProjectCard(project) {
     LOW: '#36cfc9'
   }[project.priority] || '#888';
   return `
-    <div class="project-card ${project.color || 'teal'} ${project.priority?.toLowerCase()}" draggable="true" ondragstart="drag(event)" data-id="${project.id}">
+    <div class="project-card modern-card ${project.color || 'teal'} ${project.priority?.toLowerCase()}" draggable="true" ondragstart="drag(event)" data-id="${project.id}">
       <div class="card-header">
         <div class="card-title-row">
           <h4 class="card-title">${escapeHtml(project.title)}</h4>
@@ -424,15 +424,15 @@ function renderProjectCard(project) {
             <button onclick="deleteProject('${project.id}')" class="icon-btn" title="Delete">🗑️</button>
           </div>
         </div>
-        <div class="card-priority" style="background:${priorityColor}">${project.priority || ''}</div>
+        <div class="card-priority-badge" style="background:${priorityColor}">${project.priority || ''}</div>
       </div>
       <div class="card-info-row">
         ${project.client ? `<span class="card-client">${escapeHtml(project.client)}</span>` : ''}
         ${project.dueDate ? `<span class="card-due ${overdue ? 'overdue' : ''}">${overdue ? 'Overdue' : 'Due'}: ${utils.formatDate(project.dueDate)}</span>` : ''}
       </div>
       <div class="card-progress-bar">
-        <div class="progress-bg">
-          <div class="progress-fg" style="width:${Math.round(progress * 100)}%"></div>
+        <div class="progress-bg modern-progress-bg">
+          <div class="progress-fg modern-progress-fg" style="width:${Math.round(progress * 100)}%"></div>
         </div>
         <span class="progress-label">${CONFIG.stages[stageIndex]?.name || ''}</span>
       </div>
@@ -827,7 +827,6 @@ function openManageModal() {
 }
 
 function renderManageLists() {
-  renderManageList('editorsList', appState.editors, 'removeEditor');
   renderManageList('platformsList', appState.platforms, 'removePlatform');
   renderManageList('channelsList', appState.channels, 'removeChannel');
 }
@@ -974,14 +973,6 @@ async function openAdminPanel() {
         <div class="admin-section">
           <h4><span class="section-icon">🗂️</span> Manage Lists</h4>
           <div class="manage-grid">
-            <div class="manage-section">
-              <h4>Editors</h4>
-              <div class="manage-list" id="editorsList"></div>
-              <div class="add-item">
-                <input type="text" id="newEditor" placeholder="Add editor">
-                <button onclick="addEditor()">Add</button>
-              </div>
-            </div>
             <div class="manage-section">
               <h4>Platforms</h4>
               <div class="manage-list" id="platformsList"></div>
